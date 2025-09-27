@@ -1,5 +1,5 @@
 export const colors = {
-  primary: "#FF6B35",
+  primary: "#4A90E2", // Premium blue
   secondary: "#F7931E",
   accent: "#FFD23F",
   background: "#FFFFFF",
@@ -18,7 +18,7 @@ export const colors = {
     marker: "#FF4444",
   },
   button: {
-    primary: "#FF6B35",
+    primary: "#4A90E2",
     secondary: "#F7931E",
     disabled: "#CCCCCC",
   },
@@ -29,5 +29,26 @@ export const colors = {
   reward: {
     gold: "#FFD700",
     background: "#FFF8DC",
+  },
+  // 新しいリッチでクールなカラーパレット
+  explorer: {
+    primary: "#4A90E2", // Vibrant blue
+    darkBackground: "#1A202C", // Dark slate
+    surfaceLight: "#FFFFFF",
+    surfaceDark: "#2D3748", // Darker slate
+    textLightPrimary: "#2D3748",
+    textDarkPrimary: "#E2E8F0",
+    textLightSecondary: "#718096",
+    textDarkSecondary: "#A0AEC0",
+    glass: "rgba(255, 255, 255, 0.1)",
+    glassDark: "rgba(0, 0, 0, 0.2)",
+    glow: "rgba(72, 187, 255, 0.6)",
+  },
+  markers: {
+    blue: "#4A90E2",
+    pink: "#E91E63",
+    green: "#4CAF50",
+    yellow: "#FFC107",
+    purple: "#9C27B0",
   },
 };

@@ -207,15 +207,11 @@ export default function Timer() {
       <View style={styles.container}>
         {/* ヘッダー */}
         <View style={styles.header}>
-          <Text style={styles.headerText}>滞在チェック...</Text>
+          <Text style={styles.headerText}>未開の地を探索中...</Text>
           <TouchableOpacity
             style={styles.profileButton}
             onPress={() => router.push("/profile" as any)}
-          >
-            <View style={styles.profileIcon}>
-              <Text style={styles.profileIconText}>👤</Text>
-            </View>
-          </TouchableOpacity>
+          ></TouchableOpacity>
         </View>
 
         <View style={styles.timerContainer}>

@@ -21,6 +21,7 @@ import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
 import CustomMarker from "../components/CustomMarker";
 import PulseCircle from "../components/PulseCircle";
+import { ReviewedStoresManager } from "../utils/reviewedStores";
 
 // ★★★ ここにあなたのGoogle Maps APIキーを挿入してください ★★★
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAP_API_KEY;
@@ -115,6 +116,7 @@ export default function MapSample() {
   const [places, setPlaces] = useState<PlaceMarker[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedPlace, setSelectedPlace] = useState<PlaceMarker | null>(null);
+  const [isStoreReviewed, setIsStoreReviewed] = useState<boolean>(false);
 
   // 🌟 ユーザーの現在地を保持するステートを追加 🌟
   const [location, setLocation] = useState<{
@@ -228,9 +230,12 @@ export default function MapSample() {
     []
   );
 
-  // マーカーがタップされたときのハンドラー (変更なし)
-  const handleMarkerPress = (place: PlaceMarker) => {
+  // マーカーがタップされたときのハンドラー
+  const handleMarkerPress = async (place: PlaceMarker) => {
     setSelectedPlace(place);
+    // レビュー済みかどうかをチェック
+    const reviewed = await ReviewedStoresManager.isStoreReviewed(place.id);
+    setIsStoreReviewed(reviewed);
   };
 
   // 新しいPlaces API (New)を使用したメイン検索関数
@@ -484,7 +489,9 @@ export default function MapSample() {
               )}
               <View style={styles.imageOverlay}>
                 <Text style={styles.modalTitle}>{selectedPlace.title}</Text>
-                <Text style={styles.modalSubtitle}>未開拓店舗</Text>
+                <Text style={styles.modalSubtitle}>
+                  {isStoreReviewed ? "レビュー済み" : "未開拓店舗"}
+                </Text>
               </View>
             </View>
 
@@ -517,23 +524,36 @@ export default function MapSample() {
               </View>
             </View>
 
-            {/* 入店ボタン */}
-            <TouchableOpacity
-              style={[
-                styles.premiumButton,
-                isEnterButtonDisabled && styles.disabledButton,
-              ]}
-              onPress={handleModalEnterStore}
-              disabled={isEnterButtonDisabled}
-            >
-              <Text style={styles.premiumButtonText}>
-                {isEnterButtonDisabled ? "入店不可" : "入店"}
-              </Text>
-            </TouchableOpacity>
-            {isEnterButtonDisabled && (
-              <Text style={styles.enterDisabledMessage}>
-                入店するには{ENTER_RADIUS_METER}m以内に移動してください
-              </Text>
+            {/* レビュー済みメッセージまたは入店ボタン */}
+            {isStoreReviewed ? (
+              <View style={styles.reviewedContainer}>
+                <Text style={styles.reviewedMessage}>
+                  このお店はすでにレビュー済みです
+                </Text>
+                <Text style={styles.reviewedSubMessage}>
+                  ご協力ありがとうございました！
+                </Text>
+              </View>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.premiumButton,
+                    isEnterButtonDisabled && styles.disabledButton,
+                  ]}
+                  onPress={handleModalEnterStore}
+                  disabled={isEnterButtonDisabled}
+                >
+                  <Text style={styles.premiumButtonText}>
+                    {isEnterButtonDisabled ? "入店不可" : "入店"}
+                  </Text>
+                </TouchableOpacity>
+                {isEnterButtonDisabled && (
+                  <Text style={styles.enterDisabledMessage}>
+                    入店するには{ENTER_RADIUS_METER}m以内に移動してください
+                  </Text>
+                )}
+              </>
             )}
           </View>
         </View>
@@ -957,5 +977,27 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginHorizontal: 16,
     fontSize: 12,
+  },
+
+  // レビュー済み表示
+  reviewedContainer: {
+    marginHorizontal: 16,
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    padding: 20,
+    alignItems: "center",
+  },
+  reviewedMessage: {
+    ...typography.body,
+    color: colors.text.white,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  reviewedSubMessage: {
+    ...typography.caption,
+    color: colors.text.white,
+    textAlign: "center",
+    opacity: 0.9,
   },
 });

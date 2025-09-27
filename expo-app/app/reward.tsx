@@ -10,12 +10,10 @@ import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
 import CompeitoJar from "../components/CompeitoJar";
-import { getUserData } from "../data/mockStores";
 
 export default function Reward() {
   const router = useRouter();
   const fadeAnimation = useRef(new Animated.Value(0)).current;
-  const userData = getUserData();
   const totalCompeitos = 5;
 
   useEffect(() => {

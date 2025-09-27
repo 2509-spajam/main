@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TextInput,
   ScrollView,
+  Linking,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
@@ -17,9 +18,17 @@ export default function Review() {
   const store = getCurrentStore();
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
+  const [reviewed, setReviewed] = useState(false); // Googleレビュー済み状態
+
+  // Googleレビュー投稿ページに遷移する
+  const handleGoogleReview = () => {
+    const placeId = "ChIJ1_DZbAD1QDURze897ZGTrdU";
+    const url = `https://search.google.com/local/writereview?placeid=${placeId}`;
+    Linking.openURL(url);
+    setReviewed(true); // 遷移したらレビュー済みとみなす
+  };
 
   const handleSubmitReview = () => {
-    // モックでは単純に報酬画面に遷移
     router.push("/reward" as any);
   };
 
@@ -41,7 +50,7 @@ export default function Review() {
     <ScrollView style={styles.container}>
       {/* ヘッダー */}
       <View style={styles.header}>
-        <Text style={styles.headerText}>お店を利用した、レビューを書く</Text>
+        <Text style={styles.headerText}>レビューを書く</Text>
       </View>
 
       <View style={styles.content}>
@@ -50,39 +59,49 @@ export default function Review() {
           <View style={styles.storeIcon}>
             <Text style={styles.storeIconText}>🏪</Text>
           </View>
-          <Text style={styles.storeName}>{store.name}</Text>
+          <Text style={styles.storeName}>{store?.name ?? "店舗名"}</Text>
         </View>
 
-        {/* 星評価 */}
-        <View style={styles.ratingContainer}>
-          <Text style={styles.ratingLabel}>評価:</Text>
-          <View style={styles.starsContainer}>{renderStars()}</View>
-        </View>
+        {/* 説明文 */}
+        <Text
+          style={{
+            ...typography.body,
+            color: colors.text.secondary,
+            textAlign: "center",
+            marginBottom: 24,
+          }}
+        >
+          Googleのレビュー投稿ページに遷移します。投稿後「次へ」ボタンが有効になります。
+        </Text>
 
-        {/* レビューテキスト */}
-        <View style={styles.reviewInputContainer}>
-          <Text style={styles.reviewLabel}>レビュー:</Text>
-          <TextInput
-            style={styles.reviewInput}
-            multiline
-            numberOfLines={4}
-            placeholder="お店の感想を書いてください..."
-            placeholderTextColor={colors.text.light}
-            value={reviewText}
-            onChangeText={setReviewText}
-          />
-        </View>
+        {/* 感謝メッセージ（レビュー済みの場合のみ表示） */}
+        {reviewed && (
+          <Text style={styles.thankYouText}>ご協力ありがとうございます！</Text>
+        )}
+        {/* Googleレビュー投稿ボタン */}
+        <TouchableOpacity
+          style={[
+            styles.googleReviewButton,
+            reviewed && styles.submitButtonDisabled,
+          ]}
+          onPress={reviewed ? undefined : handleGoogleReview}
+          disabled={reviewed}
+        >
+          <Text style={styles.googleReviewButtonText}>
+            {reviewed ? "レビュー済み" : "Googleで店舗レビューを書く"}
+          </Text>
+        </TouchableOpacity>
 
-        {/* 投稿ボタン */}
+        {/* 次へボタン（レビュー前は灰色・非活性、レビュー後は有効） */}
         <TouchableOpacity
           style={[
             styles.submitButton,
-            (!rating || !reviewText.trim()) && styles.submitButtonDisabled,
+            !reviewed && styles.submitButtonDisabled,
           ]}
           onPress={handleSubmitReview}
-          disabled={!rating || !reviewText.trim()}
+          disabled={!reviewed}
         >
-          <Text style={styles.submitButtonText}>レビューを投稿</Text>
+          <Text style={styles.submitButtonText}>次へ</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -179,5 +198,25 @@ const styles = StyleSheet.create({
   submitButtonText: {
     ...typography.button,
     color: colors.text.white,
+  },
+  googleReviewButton: {
+    backgroundColor: colors.accent,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  googleReviewButtonText: {
+    ...typography.button,
+    color: colors.text.white,
+  },
+  thankYouText: {
+    ...typography.body,
+    color: colors.accent,
+    textAlign: "center",
+    marginBottom: 8,
+    fontWeight: "bold",
+    fontSize: 18,
   },
 });

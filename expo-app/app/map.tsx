@@ -11,6 +11,7 @@ import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // マーカーのデータ型
 // 経度・緯度の情報と一意キー用のidで構成
@@ -60,38 +61,40 @@ export default function MapSample() {
 
   return (
     <>
-      <View style={styles.container}>
-        {/* ヘッダー */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>未評価レビュワーズ</Text>
-        </View>
-        {errorMsg ? (
-          <Text>{errorMsg}</Text>
-        ) : (
-          // MapViewではstyle設定は必須です。
-          // （設定しないとMAP表示されません）
-          // regionはinitRegion(Region型)を設定
-          // showsUserLocationはtrueにすると、現在地が青い点で表示します。
-          // providerをgoogleにするとiOSでもGoogleMapで表示してくれます。
-          // （デフォルトはapple map）
-          <MapView
-            style={styles.mapContainer}
-            region={initRegion || undefined}
-            showsUserLocation={true}
-            provider="google"
-          ></MapView>
-        )}
+      <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
+          {/* ヘッダー */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>未評価レビュワーズ</Text>
+          </View>
+          {errorMsg ? (
+            <Text>{errorMsg}</Text>
+          ) : (
+            // MapViewではstyle設定は必須です。
+            // （設定しないとMAP表示されません）
+            // regionはinitRegion(Region型)を設定
+            // showsUserLocationはtrueにすると、現在地が青い点で表示します。
+            // providerをgoogleにするとiOSでもGoogleMapで表示してくれます。
+            // （デフォルトはapple map）
+            <MapView
+              style={styles.mapContainer}
+              region={initRegion || undefined}
+              showsUserLocation={true}
+              provider="google"
+            ></MapView>
+          )}
 
-        {/* 下部ボタン */}
-        <View style={styles.bottomContainer}>
-          <TouchableOpacity
-            style={styles.enterButton}
-            onPress={handleEnterStore}
-          >
-            <Text style={styles.enterButtonText}>お店に入る</Text>
-          </TouchableOpacity>
+          {/* 下部ボタン */}
+          <View style={styles.bottomContainer}>
+            <TouchableOpacity
+              style={styles.enterButton}
+              onPress={handleEnterStore}
+            >
+              <Text style={styles.enterButtonText}>お店に入る</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </SafeAreaView>
     </>
   );
 }

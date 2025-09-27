@@ -34,10 +34,10 @@ export default function Timer() {
     useCallback(() => {
       const checkAndResetIfNeeded = async () => {
         const storedSessionId = await AsyncStorage.getItem(
-          TIMER_STORAGE_KEYS.SESSION,
+          TIMER_STORAGE_KEYS.SESSION
         );
         const storedStartTime = await AsyncStorage.getItem(
-          TIMER_STORAGE_KEYS.START_TIME,
+          TIMER_STORAGE_KEYS.START_TIME
         );
 
         // 既存のセッションがある場合
@@ -46,29 +46,33 @@ export default function Timer() {
           if (currentSessionId === null) {
             // 画面に初めて入った時、前回のデータがある場合はリセット
             await resetTimer();
-            // リセット後、自動的にタイマーを開始
-            await startTimer();
+            // タイマーが終了していない場合のみ自動開始
+            if (!isTimeUp) {
+              await startTimer();
+            }
           } else if (storedSessionId !== currentSessionId) {
             // 異なるセッションの場合はリセット
             await resetTimer();
-            // リセット後、自動的にタイマーを開始
-            await startTimer();
+            // タイマーが終了していない場合のみ自動開始
+            if (!isTimeUp) {
+              await startTimer();
+            }
           } else {
             // 同じセッションの場合は継続（バックグラウンドから復帰等）
             const elapsed = await calculateElapsedTime();
             const newRemainingTime = 10 * 60 - elapsed; // TOTAL_TIME_SECONDS
 
-            if (newRemainingTime > 0) {
+            if (newRemainingTime > 0 && !isTimeUp) {
               if (!isRunning) {
                 startTimer(
                   new Date(storedStartTime).getTime(),
-                  storedSessionId,
+                  storedSessionId
                 );
               }
             }
           }
-        } else {
-          // 初回訪問時（ストレージにデータがない場合）
+        } else if (!isTimeUp) {
+          // 初回訪問時（ストレージにデータがない場合）かつタイマーが終了していない場合
           // 自動的にタイマーを開始
           await startTimer();
         }
@@ -83,17 +87,18 @@ export default function Timer() {
     }, [
       currentSessionId,
       isRunning,
+      isTimeUp,
       calculateElapsedTime,
       startTimer,
       resetTimer,
-    ]),
+    ])
   );
 
   // AppStateのリスナー設定
   useEffect(() => {
     const subscription = AppState.addEventListener(
       "change",
-      handleAppStateChange,
+      handleAppStateChange
     );
 
     return () => {
@@ -122,13 +127,14 @@ export default function Timer() {
           {/* タイマー表示 */}
           <Text style={styles.timerText}>{timerText}</Text>
 
-          {/* タイマー実行中の表示 */}
-          {isRunning && !isTimeUp && (
+          {/* タイマー状態表示 */}
+          {isTimeUp ? (
+            <Text style={styles.timeUpText}>⏰ タイムアップ！</Text>
+          ) : isRunning ? (
             <Text style={styles.runningText}>⏱️ タイマー実行中...</Text>
+          ) : (
+            <Text style={styles.runningText}>タイマー準備中...</Text>
           )}
-
-          {/* タイムアップ表示 */}
-          {isTimeUp && <Text style={styles.timeUpText}>⏰ タイムアップ！</Text>}
         </View>
 
         {/* --- 店舗情報 --- */}

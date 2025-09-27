@@ -17,8 +17,8 @@ export default function Reward() {
   const compeitoCount = 5; // 現在のこんぺいとう数
 
   useEffect(() => {
-    console.log('🏆 Reward screen loaded');
-    
+    console.log("🏆 Reward screen loaded");
+
     // フェードインアニメーション
     Animated.timing(fadeAnimation, {
       toValue: 1,
@@ -96,8 +96,8 @@ const styles = StyleSheet.create({
   },
   compeitoContainer: {
     marginBottom: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   getMessage: {
     ...typography.body,

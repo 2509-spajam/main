@@ -50,7 +50,7 @@ export default function Profile() {
         {/* プロフィール情報 */}
         <View style={styles.profileSection}>
           <Image
-            source={require("../assets/images/react-logo.png")}
+            source={require("../assets/images/spa-nyan.png")}
             style={styles.profileAvatar}
             resizeMode="contain"
           />
@@ -58,6 +58,21 @@ export default function Profile() {
         </View>
 
 
+
+        {/* 3D表示スペース */}
+        <View style={styles.display3DContainer}>
+          <View style={styles.bottle3D}>
+            <BottleDisplay3D 
+              style={styles.bottle3DInner} 
+              compeitoCount={profile.totalKompeito}
+            />
+            <View style={styles.bottle3DOverlay}>
+              <Text style={styles.bottleText}>
+                獲得したコンペイトウ: {profile.totalKompeito}個
+              </Text>
+            </View>
+          </View>
+        </View>
 
         {/* 統計情報 */}
         <View style={styles.statsContainer}>
@@ -74,22 +89,6 @@ export default function Profile() {
                 {profile.totalKompeito}
               </Text>
               <Text style={styles.statLabel}>獲得コンペイトウ 🍬</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* 3D表示スペース */}
-        <View style={styles.display3DContainer}>
-          <Text style={styles.sectionTitle}>コンペイトウコレクション</Text>
-          <View style={styles.bottle3D}>
-            <BottleDisplay3D 
-              style={styles.bottle3DInner} 
-              compeitoCount={profile.totalKompeito}
-            />
-            <View style={styles.bottle3DOverlay}>
-              <Text style={styles.bottleText}>
-                獲得したコンペイトウ: {profile.totalKompeito}個
-              </Text>
             </View>
           </View>
         </View>

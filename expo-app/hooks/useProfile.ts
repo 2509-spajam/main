@@ -7,7 +7,7 @@ import {
 } from "../types/profile";
 
 const DEFAULT_PROFILE: UserProfile = {
-  username: "探求者",
+  username: "すぱにゃん",
   joinDate: new Date().toISOString(),
   totalReviews: 0,
   totalKompeito: 0,

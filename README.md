@@ -1,4 +1,4 @@
 # app
 react native expo
 
-# menber toyama
+# member toyama

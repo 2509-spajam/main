@@ -7,7 +7,19 @@ export interface Store {
   averageRating: number;
   description?: string;
   imageUrl?: string;
+  compeitoReward?: number; // レビュー投稿時にもらえるこんぺいとう数
 }
+
+// ユーザーのこんぺいとう管理
+interface UserData {
+  totalCompeitos: number;
+  reviewedStores: string[];
+}
+
+let userData: UserData = {
+  totalCompeitos: 0,
+  reviewedStores: [],
+};
 
 export const mockStores: Store[] = [
   {
@@ -19,6 +31,7 @@ export const mockStores: Store[] = [
     averageRating: 3.5,
     description: "未評価のカフェ。隠れた名店かも？",
     imageUrl: "https://via.placeholder.com/100x100?text=hogeU",
+    compeitoReward: 5, // レビューでこんぺいとう5個げっと
   },
   {
     id: "2",
@@ -29,6 +42,7 @@ export const mockStores: Store[] = [
     averageRating: 0,
     description: "家庭的な雰囲気の食堂",
     imageUrl: "https://via.placeholder.com/100x100?text=食堂",
+    compeitoReward: 3, // こんぺいとう3個
   },
   {
     id: "3",
@@ -39,10 +53,37 @@ export const mockStores: Store[] = [
     averageRating: 4.0,
     description: "最近オープンした古本屋",
     imageUrl: "https://via.placeholder.com/100x100?text=書店",
+    compeitoReward: 4, // こんぺいとう4個
   },
 ];
 
 export const getCurrentStore = (): Store => {
   // モックでは最初の店舗を返す
   return mockStores[0];
+};
+
+// ユーザーデータ管理関数
+export const getUserData = (): UserData => {
+  return userData;
+};
+
+export const addCompeitos = (count: number): void => {
+  userData.totalCompeitos += count;
+  console.log(`🍬 Added ${count} compeitos. Total: ${userData.totalCompeitos}`);
+};
+
+export const markStoreAsReviewed = (storeId: string): void => {
+  if (!userData.reviewedStores.includes(storeId)) {
+    userData.reviewedStores.push(storeId);
+    console.log(`✅ Store ${storeId} marked as reviewed`);
+  }
+};
+
+export const hasReviewedStore = (storeId: string): boolean => {
+  return userData.reviewedStores.includes(storeId);
+};
+
+export const getCompeitoReward = (storeId: string): number => {
+  const store = mockStores.find(s => s.id === storeId);
+  return store?.compeitoReward || 1;
 };

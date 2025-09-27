@@ -9,11 +9,14 @@ import {
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
-import CompeitoAnimation from "../components/CompeitoAnimation";
+import CompeitoJar from "../components/CompeitoJar";
+import { getUserData } from "../data/mockStores";
 
 export default function Reward() {
   const router = useRouter();
   const fadeAnimation = useRef(new Animated.Value(0)).current;
+  const userData = getUserData();
+  const totalCompeitos = 5;
 
   useEffect(() => {
     console.log('🏆 Reward screen loaded');
@@ -45,11 +48,13 @@ export default function Reward() {
           <Text style={styles.congratsText}>コンペイトウ{"\n"}GET！</Text>
         </Animated.View>
         
-        {/* 3D/2Dコンペイトウアニメーション */}
-        {/* testMode: 'gl' | 'cube' | 'compeito' | 'fallback' でデバッグ可能 */}
-        <CompeitoAnimation 
-          style={styles.compeitoContainer} 
-          testMode="cube" 
+        {/* 3Dこんぺいとうビン表示 */}
+        <CompeitoJar 
+          count={totalCompeitos} 
+          size="medium" 
+          animated={true} 
+          style={styles.compeitoContainer}
+          showCount={true}
         />
 
         <Animated.View style={{ opacity: fadeAnimation }}>

@@ -128,6 +128,10 @@ const getBearing = (
   lat2: number,
   lon2: number
 ): number => {
+  console.log(
+    `getBearing計算: (${lat1.toFixed(6)}, ${lon1.toFixed(6)}) → (${lat2.toFixed(6)}, ${lon2.toFixed(6)})`
+  );
+
   const φ1 = (lat1 * Math.PI) / 180;
   const φ2 = (lat2 * Math.PI) / 180;
   const Δλ = ((lon2 - lon1) * Math.PI) / 180;
@@ -136,10 +140,14 @@ const getBearing = (
   const x =
     Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
 
+  console.log(`getBearing中間計算: y=${y.toFixed(6)}, x=${x.toFixed(6)}`);
+
   let bearing = Math.atan2(y, x) * (180 / Math.PI);
+  console.log(`getBearing生の角度: ${bearing.toFixed(1)}°`);
 
   // 0-360度の範囲に正規化
   bearing = (bearing + 360) % 360;
+  console.log(`getBearing正規化後: ${bearing.toFixed(1)}°`);
 
   return bearing;
 };
@@ -192,8 +200,143 @@ export default function MapSample() {
   // 🌟 MapViewのref追加 🌟
   const mapRef = useRef<MapView>(null);
 
-  // 🌟 経路方向計算用の関数 🌟
-  const getRouteDirection = useCallback(() => {
+  // 🌟 位置情報監視用のref 🌟
+  const locationSubscriptionRef = useRef<any>(null);
+
+  // 🌟 経路上で現在地に最も近い座標点を見つける関数 🌟
+  const findNearestRoutePoint = useCallback(
+    (
+      currentLocation: { latitude: number; longitude: number },
+      routeCoordinates: Array<{ latitude: number; longitude: number }>
+    ) => {
+      if (!routeCoordinates || routeCoordinates.length === 0) {
+        return null;
+      }
+
+      let nearestIndex = 0;
+      let minDistance = getDistance(
+        currentLocation.latitude,
+        currentLocation.longitude,
+        routeCoordinates[0].latitude,
+        routeCoordinates[0].longitude
+      );
+
+      for (let i = 1; i < routeCoordinates.length; i++) {
+        const distance = getDistance(
+          currentLocation.latitude,
+          currentLocation.longitude,
+          routeCoordinates[i].latitude,
+          routeCoordinates[i].longitude
+        );
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestIndex = i;
+        }
+      }
+
+      return { index: nearestIndex, distance: minDistance };
+    },
+    []
+  );
+
+  // 🌟 現在地から次の進行方向を計算する関数 🌟
+  const getNextDirectionFromRoute = useCallback(() => {
+    console.log("=== getNextDirectionFromRoute 開始 ===");
+    console.log("location:", location);
+    console.log("routeData:", routeData);
+    console.log(
+      "routeData?.coordinates?.length:",
+      routeData?.coordinates?.length
+    );
+
+    if (
+      !location ||
+      !routeData ||
+      !routeData.coordinates ||
+      routeData.coordinates.length < 2
+    ) {
+      console.log("必要なデータが不足しています");
+      return null;
+    }
+
+    // 経路座標の最初の数点をログ出力
+    console.log("経路座標の最初の5点:");
+    routeData.coordinates.slice(0, 5).forEach((coord, index) => {
+      console.log(
+        `  [${index}]: (${coord.latitude.toFixed(6)}, ${coord.longitude.toFixed(6)})`
+      );
+    });
+
+    // 現在地に最も近い経路上の点を見つける
+    const nearestPoint = findNearestRoutePoint(location, routeData.coordinates);
+    if (!nearestPoint) {
+      console.log("最寄りの経路点が見つかりませんでした");
+      return null;
+    }
+
+    console.log(
+      `最寄りの経路点: インデックス${nearestPoint.index}, 距離${nearestPoint.distance.toFixed(1)}m`
+    );
+
+    const { index } = nearestPoint;
+    const routeCoordinates = routeData.coordinates;
+
+    // 次の進行方向を計算するための座標を決定
+    let nextPointIndex = index + 1;
+
+    // 経路の終点に近い場合は、少し先の点を使用
+    if (nextPointIndex >= routeCoordinates.length) {
+      nextPointIndex = routeCoordinates.length - 1;
+      console.log(
+        `経路の終点に到達。最後の点を使用: インデックス${nextPointIndex}`
+      );
+    }
+
+    // より先の点を使用して方向を安定化（最低でも3点先、または50m先の点を使用）
+    for (let i = index + 1; i < routeCoordinates.length; i++) {
+      const distanceToPoint = getDistance(
+        routeCoordinates[index].latitude,
+        routeCoordinates[index].longitude,
+        routeCoordinates[i].latitude,
+        routeCoordinates[i].longitude
+      );
+
+      console.log(`経路点[${i}]までの距離: ${distanceToPoint.toFixed(1)}m`);
+
+      // 50m以上先の点、または経路上で3点以上先の点を使用
+      if (distanceToPoint >= 50 || i >= index + 3) {
+        nextPointIndex = i;
+        console.log(
+          `次の目標点を決定: インデックス${nextPointIndex}, 距離${distanceToPoint.toFixed(1)}m`
+        );
+        break;
+      }
+    }
+
+    console.log(
+      `現在地: (${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)})`
+    );
+    console.log(
+      `次の目標点: (${routeCoordinates[nextPointIndex].latitude.toFixed(6)}, ${routeCoordinates[nextPointIndex].longitude.toFixed(6)})`
+    );
+
+    // 現在地から次の進行方向への方位角を計算
+    const bearing = getBearing(
+      location.latitude,
+      location.longitude,
+      routeCoordinates[nextPointIndex].latitude,
+      routeCoordinates[nextPointIndex].longitude
+    );
+
+    console.log(`計算された方位角: ${bearing.toFixed(1)}°`);
+    console.log("=== getNextDirectionFromRoute 終了 ===");
+
+    return bearing;
+  }, [location, routeData, findNearestRoutePoint]);
+
+  // 🌟 フォールバック用の直線方向計算関数 🌟
+  const getDirectRouteDirection = useCallback(() => {
     if (!location || !routeTargetPlace) {
       return null;
     }
@@ -207,7 +350,7 @@ export default function MapSample() {
     );
 
     console.log(
-      `経路方向: 現在地(${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}) → 目的地(${routeTargetPlace.latitude.toFixed(4)}, ${routeTargetPlace.longitude.toFixed(4)}) = ${bearing.toFixed(1)}°`
+      `直線方向: 現在地(${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}) → 目的地(${routeTargetPlace.latitude.toFixed(4)}, ${routeTargetPlace.longitude.toFixed(4)}) = ${bearing.toFixed(1)}°`
     );
 
     return bearing;
@@ -218,39 +361,128 @@ export default function MapSample() {
     return `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=400&key=${GOOGLE_MAPS_API_KEY}`;
   };
 
-  // 🌟 経路方向コンパス機能: 目的地方向に地図を向ける 🌟
+  // 🌟 位置情報の監視を開始する関数 🌟
+  const startLocationTracking = useCallback(async () => {
+    if (!isRouteMode) return;
+
+    console.log("位置情報の監視を開始");
+
+    try {
+      // 位置情報の監視を開始
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.BestForNavigation,
+          timeInterval: 2000, // 2秒間隔
+          distanceInterval: 5, // 5m移動したら更新
+        },
+        (newLocation) => {
+          const { latitude, longitude } = newLocation.coords;
+
+          console.log(
+            `位置情報更新: (${latitude.toFixed(6)}, ${longitude.toFixed(6)})`
+          );
+
+          // 現在地ステートを更新
+          setLocation({ latitude, longitude });
+
+          // 経路モード中であれば地図の向きを更新
+          if (isRouteMode && mapRef.current) {
+            // まず経路データから次の進行方向を計算
+            let nextDirection = getNextDirectionFromRoute();
+
+            // 経路データが利用できない場合は直線方向をフォールバックとして使用
+            if (nextDirection === null && routeTargetPlace) {
+              nextDirection = getDirectRouteDirection();
+            }
+
+            if (nextDirection !== null) {
+              console.log(
+                `位置更新により地図を次の進行方向${nextDirection.toFixed(1)}°に向ける...`
+              );
+
+              // animateCameraを使用して地図を次の進行方向に向ける
+              mapRef.current.animateCamera(
+                {
+                  center: {
+                    latitude,
+                    longitude,
+                  },
+                  heading: nextDirection, // 次の進行方向を設定
+                  pitch: 0, // 傾きは0
+                  zoom: 17, // ズームレベル（経路表示に適した値）
+                },
+                { duration: 1000 }
+              ); // 1秒でスムーズにアニメーション
+
+              setHeading(nextDirection);
+            }
+          }
+        }
+      );
+
+      locationSubscriptionRef.current = subscription;
+    } catch (error) {
+      console.error("位置情報監視の開始に失敗:", error);
+    }
+  }, [
+    isRouteMode,
+    routeTargetPlace,
+    getNextDirectionFromRoute,
+    getDirectRouteDirection,
+  ]);
+
+  // 🌟 経路方向コンパス機能: 次の進行方向に地図を向ける 🌟
   const startRouteCompass = useCallback(() => {
     console.log("経路方向コンパス開始");
 
-    // 🌟 定期的に経路方向を更新する間隔を設定 🌟
+    // 🌟 位置情報の監視を開始 🌟
+    startLocationTracking();
+
+    // 🌟 フォールバック用の定期更新（位置情報監視が失敗した場合用） 🌟
     const updateInterval = setInterval(() => {
-      if (isRouteMode && location && routeTargetPlace && mapRef.current) {
-        const routeDirection = getRouteDirection();
+      if (isRouteMode && location && mapRef.current) {
+        // まず経路データから次の進行方向を計算
+        let nextDirection = getNextDirectionFromRoute();
 
-        if (routeDirection !== null) {
-          console.log(`地図を経路方向${routeDirection.toFixed(1)}°に向ける...`);
+        // 経路データが利用できない場合は直線方向をフォールバックとして使用
+        if (nextDirection === null && routeTargetPlace) {
+          nextDirection = getDirectRouteDirection();
+          console.log("経路データが利用できないため、直線方向を使用");
+        }
 
-          // animateCameraを使用して地図を経路方向に向ける
+        if (nextDirection !== null) {
+          console.log(
+            `フォールバック更新: 地図を次の進行方向${nextDirection.toFixed(1)}°に向ける...`
+          );
+
+          // animateCameraを使用して地図を次の進行方向に向ける
           mapRef.current.animateCamera(
             {
               center: {
                 latitude: location.latitude,
                 longitude: location.longitude,
               },
-              heading: routeDirection, // 経路方向を設定
+              heading: nextDirection, // 次の進行方向を設定
               pitch: 0, // 傾きは0
               zoom: 17, // ズームレベル（経路表示に適した値）
             },
             { duration: 1000 }
           ); // 1秒でスムーズにアニメーション
 
-          setHeading(routeDirection);
+          setHeading(nextDirection);
         }
       }
-    }, 2000); // 2秒間隔で更新
+    }, 5000); // 5秒間隔でフォールバック更新
 
     setMagnetometerSubscription(updateInterval);
-  }, [isRouteMode, location, routeTargetPlace, getRouteDirection]);
+  }, [
+    isRouteMode,
+    location,
+    routeTargetPlace,
+    getNextDirectionFromRoute,
+    getDirectRouteDirection,
+    startLocationTracking,
+  ]);
 
   // 🌟 経路コンパス機能を停止 🌟
   const stopCompass = useCallback(() => {
@@ -259,7 +491,83 @@ export default function MapSample() {
       clearInterval(magnetometerSubscription);
       setMagnetometerSubscription(null);
     }
+
+    // 🌟 位置情報監視も停止 🌟
+    if (locationSubscriptionRef.current) {
+      console.log("位置情報監視停止");
+      locationSubscriptionRef.current.remove();
+      locationSubscriptionRef.current = null;
+    }
   }, [magnetometerSubscription]);
+
+  // 🌟 経路データ設定後の初期方向設定関数 🌟
+  const setupInitialRouteDirection = useCallback(
+    (newRouteData: RouteData) => {
+      if (!location || !mapRef.current) return;
+
+      console.log("=== 経路データ設定後の初期方向設定 ===");
+      console.log("現在地:", location);
+      console.log("新しい経路データ座標数:", newRouteData.coordinates.length);
+
+      // 新しい経路データを使用して次の進行方向を計算
+      const nearestPoint = findNearestRoutePoint(
+        location,
+        newRouteData.coordinates
+      );
+      if (!nearestPoint) {
+        console.log("最寄りの経路点が見つかりませんでした");
+        return;
+      }
+
+      const { index } = nearestPoint;
+      let nextPointIndex = index + 1;
+
+      // より先の点を使用して方向を安定化
+      for (let i = index + 1; i < newRouteData.coordinates.length; i++) {
+        const distanceToPoint = getDistance(
+          newRouteData.coordinates[index].latitude,
+          newRouteData.coordinates[index].longitude,
+          newRouteData.coordinates[i].latitude,
+          newRouteData.coordinates[i].longitude
+        );
+
+        if (distanceToPoint >= 50 || i >= index + 3) {
+          nextPointIndex = i;
+          break;
+        }
+      }
+
+      if (nextPointIndex >= newRouteData.coordinates.length) {
+        nextPointIndex = newRouteData.coordinates.length - 1;
+      }
+
+      // 現在地から次の進行方向への方位角を計算
+      const bearing = getBearing(
+        location.latitude,
+        location.longitude,
+        newRouteData.coordinates[nextPointIndex].latitude,
+        newRouteData.coordinates[nextPointIndex].longitude
+      );
+
+      console.log(`初期設定: 地図を次の進行方向${bearing.toFixed(1)}°に向ける`);
+
+      mapRef.current.animateCamera(
+        {
+          center: {
+            latitude: location.latitude,
+            longitude: location.longitude,
+          },
+          heading: bearing,
+          pitch: 0,
+          zoom: 17,
+        },
+        { duration: 2000 }
+      );
+
+      console.log("=== 初期方向設定完了 ===");
+    },
+    [location, findNearestRoutePoint]
+  );
 
   // Google Directions APIを使用した経路取得関数
   const fetchRoute = useCallback(
@@ -285,7 +593,22 @@ export default function MapSample() {
           // Polyline用の座標データを変換
           const coordinates = decodePolyline(route.overview_polyline.points);
 
-          setRouteData({
+          console.log("=== 経路データ設定 ===");
+          console.log(`経路座標数: ${coordinates.length}点`);
+          console.log("最初の5点:");
+          coordinates.slice(0, 5).forEach((coord, index) => {
+            console.log(
+              `  [${index}]: (${coord.latitude.toFixed(6)}, ${coord.longitude.toFixed(6)})`
+            );
+          });
+          console.log("最後の5点:");
+          coordinates.slice(-5).forEach((coord, index) => {
+            console.log(
+              `  [${coordinates.length - 5 + index}]: (${coord.latitude.toFixed(6)}, ${coord.longitude.toFixed(6)})`
+            );
+          });
+
+          const routeDataObj = {
             coordinates,
             distance: leg.distance.text,
             duration: leg.duration.text,
@@ -294,7 +617,13 @@ export default function MapSample() {
               distance: step.distance.text,
               duration: step.duration.text,
             })),
-          });
+          };
+
+          console.log("設定する経路データ:", routeDataObj);
+          setRouteData(routeDataObj);
+
+          // 🌟 経路データ設定直後に初期方向を設定 🌟
+          setupInitialRouteDirection(routeDataObj);
         }
       } catch (error) {
         console.error("経路取得エラー:", error);
@@ -303,7 +632,7 @@ export default function MapSample() {
         setIsLoadingRoute(false);
       }
     },
-    [location]
+    [location, setupInitialRouteDirection]
   );
 
   // Polyline文字列をデコードする関数
@@ -354,54 +683,21 @@ export default function MapSample() {
 
     // 🌟 経路対象の店舗を保存 🌟
     setRouteTargetPlace(selectedPlace);
-    await fetchRoute(selectedPlace);
-    setIsRouteMode(true);
 
-    // 🌟 経路モード開始時に地図を経路方向に向ける 🌟
-    if (location && mapRef.current) {
-      console.log("経路モード開始 - 経路方向に地図を向ける");
+    // 🌟 経路データを取得して、成功した場合のみ経路モードを開始 🌟
+    try {
+      await fetchRoute(selectedPlace);
+      setIsRouteMode(true);
 
-      // 🌟 経路方向を計算して地図を向ける 🌟
-      const routeDirection = getRouteDirection();
-      if (routeDirection !== null) {
-        console.log(
-          `初期設定: 地図を経路方向${routeDirection.toFixed(1)}°に向ける`
-        );
+      // 🌟 経路方向コンパス機能を開始 🌟
+      startRouteCompass();
 
-        mapRef.current.animateCamera(
-          {
-            center: {
-              latitude: location.latitude,
-              longitude: location.longitude,
-            },
-            heading: routeDirection, // 経路方向に設定
-            pitch: 0,
-            zoom: 17,
-          },
-          { duration: 2000 }
-        );
-      } else {
-        // フォールバック: 経路方向が計算できない場合は北向き
-        mapRef.current.animateCamera(
-          {
-            center: {
-              latitude: location.latitude,
-              longitude: location.longitude,
-            },
-            heading: 0, // 北向き
-            pitch: 0,
-            zoom: 17,
-          },
-          { duration: 1000 }
-        );
-      }
+      // 🌟 経路表示後にモーダルを閉じる 🌟
+      setSelectedPlace(null);
+    } catch (error) {
+      console.error("経路表示の開始に失敗:", error);
+      Alert.alert("エラー", "経路の表示に失敗しました。");
     }
-
-    // 🌟 経路方向コンパス機能を開始 🌟
-    startRouteCompass();
-
-    // 🌟 経路表示後にモーダルを閉じる 🌟
-    setSelectedPlace(null);
   };
 
   // 経路表示モードの終了

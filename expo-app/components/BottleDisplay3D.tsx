@@ -17,7 +17,7 @@ interface BottleDisplay3DProps {
 
 export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  const [hasError, setHasError] = useState(false);  
   const rendererRef = useRef<Renderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -37,12 +37,15 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
 
   const onContextCreate = async (gl: any) => {
     try {
-      // レンダラーの設定（アンチエイリアシングを無効化）
+            // レンダラーの設定（Multisample関連機能を完全無効化）
       const renderer = new Renderer({ 
         gl,
-        antialias: false,
+        antialias: false,     // MSAA無効化
+        stencil: false,       // ステンシルバッファ無効化
+        depth: false,         // デプスバッファ無効化
         alpha: true,
-        preserveDrawingBuffer: true
+        preserveDrawingBuffer: false,
+        powerPreference: "low-power"
       });
       renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
       renderer.setClearColor(0x000000, 0); // 透明な背景

@@ -209,7 +209,7 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
         const radius = Math.random() * 0.4 + 0.1; // 0.1-0.5の範囲
         const initialX = Math.cos(angle) * radius;
         const initialZ = Math.sin(angle) * radius;
-        const initialY = 1.2 + layer * 0.2 + Math.random() * 0.1; // レイヤー別の高さ
+        const initialY = 2.0 + layer * 0.8 + Math.random() * 1.5; // Y軸スポーン範囲を大幅拡張（2.0-5.5）
         
         compeitoInstance.position.set(initialX, initialY, initialZ);
         
@@ -227,13 +227,13 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
         
         scene.add(compeitoInstance);
         
-        // 物理データ作成（少し小さめの初期速度）
+        // 物理データ作成（初期動作を保証する速度）
         compeitos.push({
           position: { x: initialX, y: initialY, z: initialZ },
           velocity: { 
-            x: (Math.random() - 0.5) * 0.002, 
-            y: 0, 
-            z: (Math.random() - 0.5) * 0.002 
+            x: (Math.random() - 0.5) * 0.02,  // 初期速度を10倍に増加
+            y: -0.001,  // 軽い下向き初期速度で確実に落下開始
+            z: (Math.random() - 0.5) * 0.02   // 初期速度を10倍に増加
           },
           radius: PHYSICS_CONFIG.compeitoRadius,
           model: compeitoInstance

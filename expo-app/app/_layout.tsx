@@ -13,7 +13,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" />
         <Stack.Screen name="map" />
-        <Stack.Screen name="timer" />
+        <Stack.Screen name="[id]" />
         <Stack.Screen name="review" />
         <Stack.Screen name="reward" />
       </Stack>

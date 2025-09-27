@@ -217,15 +217,6 @@ export default function Timer() {
         <View style={styles.timerContainer}>
           {/* タイマー表示 */}
           <Text style={styles.timerText}>{timerText}</Text>
-
-          {/* タイマー状態表示 */}
-          {isTimeUp ? (
-            <Text style={styles.timeUpText}>⏰ タイムアップ！</Text>
-          ) : isRunning ? (
-            <Text style={styles.runningText}>⏱️ タイマー実行中...</Text>
-          ) : (
-            <Text style={styles.runningText}>タイマー準備中...</Text>
-          )}
         </View>
 
         {/* --- 店舗情報 --- */}

@@ -1,10 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { GLView } from 'expo-gl';
 import { Renderer } from 'expo-three';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { Asset } from 'expo-asset';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../styles/colors';
 import { typography } from '../styles/typography';
 
@@ -52,15 +53,51 @@ interface CompeitoPhysics {
 
 interface BottleDisplay3DProps {
   style?: any;
+  compeitoCount?: number;  // プロフィールから渡されるコンペイトウ数
 }
 
-export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
+export default function BottleDisplay3D({ style, compeitoCount }: BottleDisplay3DProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);  
+  const [hasError, setHasError] = useState(false);
+  const [actualCompeitoCount, setActualCompeitoCount] = useState<number>(compeitoCount || PHYSICS_CONFIG.compeitoCount);
   const rendererRef = useRef<Renderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const animationIdRef = useRef<number | null>(null);
+
+  // propsからcompeitoCountが渡された場合は更新
+  useEffect(() => {
+    if (compeitoCount !== undefined) {
+      setActualCompeitoCount(compeitoCount);
+    }
+  }, [compeitoCount]);
+
+  // コンペイトウ数をlocalStorageから取得（propsがない場合のフォールバック）
+  useEffect(() => {
+    if (compeitoCount === undefined) {
+      const loadCompeitoCount = async () => {
+        try {
+          const storedCount = await AsyncStorage.getItem('countConpeito');
+          if (storedCount !== null) {
+            const count = Math.max(1, parseInt(storedCount, 10)); // 最低1個は保証
+            setActualCompeitoCount(count);
+            console.log(`🍯 BottleDisplay3D: コンペイトウ数を${count}個に設定`);
+          } else {
+            console.log('🍯 BottleDisplay3D: 初回表示、デフォルト数を使用');
+          }
+        } catch (error) {
+          console.error('❌ localStorage読み込みエラー:', error);
+        }
+      };
+
+      loadCompeitoCount();
+
+      // 定期的にlocalStorageをチェック（他画面での更新を検知）
+      const interval = setInterval(loadCompeitoCount, 2000); // 2秒毎にチェック
+
+      return () => clearInterval(interval);
+    }
+  }, [compeitoCount]);
 
   // クリーンアップ
   React.useEffect(() => {
@@ -191,11 +228,12 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
         );
       });
 
-      // ✅ 複数コンペイトウの物理システム
+      // ✅ 複数コンペイトウの物理システム（localStorage連動）
       const compeitos: CompeitoPhysics[] = [];
       
-      // 複数コンペイトウの生成
-      for (let i = 0; i < PHYSICS_CONFIG.compeitoCount; i++) {
+      // 複数コンペイトウの生成（実際の取得数に応じて生成）
+      console.log(`🍯 ${actualCompeitoCount}個のコンペイトウを生成中...`);
+      for (let i = 0; i < actualCompeitoCount; i++) {
         const compeitoInstance = compeitoGltf.scene.clone();
         
         // サイズ調整

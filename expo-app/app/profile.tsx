@@ -82,7 +82,10 @@ export default function Profile() {
         <View style={styles.display3DContainer}>
           <Text style={styles.sectionTitle}>コンペイトウコレクション</Text>
           <View style={styles.bottle3D}>
-            <BottleDisplay3D style={styles.bottle3DInner} />
+            <BottleDisplay3D 
+              style={styles.bottle3DInner} 
+              compeitoCount={profile.totalKompeito}
+            />
             <View style={styles.bottle3DOverlay}>
               <Text style={styles.bottleText}>
                 獲得したコンペイトウ: {profile.totalKompeito}個

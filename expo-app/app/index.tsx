@@ -1,15 +1,24 @@
 import React from "react";
+import { useFonts } from "expo-font";
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { useRouter } from "expo-router";
+
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
 
 export default function Index() {
   const router = useRouter();
+  const [fontsLoaded] = useFonts({
+    "KosugiMaru": require("../assets/fonts/KosugiMaru-Regular.ttf"),
+  });
 
   const handleStartPress = () => {
     router.push("/map" as any);
   };
+
+  if (!fontsLoaded) {
+    return <Text>Loading...</Text>;
+  }
 
   return (
     <TouchableOpacity style={styles.container} onPress={handleStartPress}>
@@ -17,22 +26,20 @@ export default function Index() {
         {/* アプリロゴ/アイコン */}
         <View style={styles.logoContainer}>
           <Image
-            source={require("../assets/images/icon.png")}
+            source={require("../assets/images/Group_350.png")}
             style={styles.logo}
             resizeMode="contain"
           />
         </View>
 
-        {/* アプリタイトル */}
-        <Text style={styles.title}>未評価レビュワーズ</Text>
 
         {/* 説明文 */}
         <View style={styles.descriptionContainer}>
-          <Text style={styles.description}>
+          <Text style={[styles.description, { fontFamily: "KosugiMaru" }] }>
             まだ評価されていないお店を発見して{"\n"}
             レビューを書いてみよう！
           </Text>
-          <Text style={styles.subdescription}>
+          <Text style={[styles.subdescription, { fontFamily: "KosugiMaru" }] }>
             レビューを書くと{"\n"}
             「コンペイトウ」がもらえるよ 🍬
           </Text>
@@ -40,7 +47,7 @@ export default function Index() {
 
         {/* タップして開始の案内 */}
         <View style={styles.tapHintContainer}>
-          <Text style={styles.tapHint}>画面をタップして開始</Text>
+          <Text style={[styles.tapHint, { fontFamily: "KosugiMaru" }]}>画面をタップして開始</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -62,8 +69,8 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   logo: {
-    width: 120,
-    height: 120,
+    width: 300,
+    height: 300,
   },
   title: {
     ...typography.title,

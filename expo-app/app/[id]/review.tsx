@@ -13,6 +13,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { colors } from "../../styles/colors";
 import { typography } from "../../styles/typography";
+import { globalStyles } from "../../styles/global";
 import Constants from "expo-constants";
 import { fetch } from "expo/fetch";
 import { ReviewedStoresManager } from "../../utils/reviewedStores";
@@ -129,11 +130,11 @@ export default function Review() {
     return (
       <ScrollView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerText}>レビューを書く</Text>
+          <Text style={[globalStyles.text, styles.headerText]}>レビューを書く</Text>
         </View>
         <View style={[styles.content, styles.center]}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>お店の情報を取得中...</Text>
+          <Text style={[globalStyles.text, styles.loadingText]}>お店の情報を取得中...</Text>
         </View>
       </ScrollView>
     );
@@ -143,11 +144,11 @@ export default function Review() {
     return (
       <ScrollView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerText}>レビューを書く</Text>
+          <Text style={[globalStyles.text, styles.headerText]}>レビューを書く</Text>
         </View>
         <View style={[styles.content, styles.center]}>
-          <Text style={styles.errorText}>エラーが発生しました</Text>
-          <Text style={styles.errorSubText}>
+          <Text style={[globalStyles.text, styles.errorText]}>エラーが発生しました</Text>
+          <Text style={[globalStyles.text, styles.errorSubText]}>
             {fetchError || "店舗情報が見つかりません"}
           </Text>
         </View>
@@ -159,7 +160,7 @@ export default function Review() {
     <ScrollView style={styles.container}>
       {/* ヘッダー */}
       <View style={styles.header}>
-        <Text style={styles.headerText}>レビューを書く</Text>
+    <Text style={[globalStyles.text, styles.headerText]}>レビューを書く</Text>
       </View>
 
       <View style={styles.content}>
@@ -175,7 +176,7 @@ export default function Review() {
             </View>
           )}
           {/* 店舗名を表示 */}
-          <Text style={styles.storeName}>{store.name}</Text>
+          <Text style={[globalStyles.text, styles.storeName]}>{store.name}</Text>
         </View>
 
         {/* 説明文 */}
@@ -185,6 +186,7 @@ export default function Review() {
             color: colors.text.secondary,
             textAlign: "center",
             marginBottom: 24,
+            fontFamily: "KosugiMaru",
           }}
         >
           Googleのレビュー投稿ページに遷移します。投稿後「次へ」ボタンが有効になります。
@@ -192,7 +194,7 @@ export default function Review() {
 
         {/* 感謝メッセージ（レビュー済みの場合のみ表示） */}
         {reviewed && (
-          <Text style={styles.thankYouText}>ご協力ありがとうございます！</Text>
+          <Text style={[globalStyles.text, styles.thankYouText]}>ご協力ありがとうございます！</Text>
         )}
         {/* Googleレビュー投稿ボタン */}
         <TouchableOpacity
@@ -203,7 +205,7 @@ export default function Review() {
           onPress={reviewed ? undefined : handleGoogleReview}
           disabled={reviewed}
         >
-          <Text style={styles.googleReviewButtonText}>
+          <Text style={[globalStyles.text, styles.googleReviewButtonText]}>
             {reviewed ? "レビュー済み" : "Googleで店舗レビューを書く"}
           </Text>
         </TouchableOpacity>
@@ -217,7 +219,7 @@ export default function Review() {
           onPress={handleSubmitReview}
           disabled={!reviewed}
         >
-          <Text style={styles.submitButtonText}>次へ</Text>
+          <Text style={[globalStyles.text, styles.submitButtonText]}>次へ</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

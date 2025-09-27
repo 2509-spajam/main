@@ -13,6 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // ※ 以下、プロジェクトの構造に合わせてパスを修正してください
 import { colors } from "../../styles/colors";
 import { typography } from "../../styles/typography";
+import { globalStyles } from "../../styles/global";
 import { useTimer, TIMER_STORAGE_KEYS } from "../../hooks/useTimer";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
@@ -231,7 +232,7 @@ export default function Timer() {
             </View>
           )}
           {/* 店舗名を表示 */}
-          <Text style={styles.storeName}>{store.name}</Text>
+          <Text style={[globalStyles.text, styles.storeName]}>{store.name}</Text>
         </View>
 
         {/* --- 退店ボタン --- */}
@@ -241,7 +242,7 @@ export default function Timer() {
             onPress={handleExitStore}
             disabled={!isTimeUp}
           >
-            <Text style={styles.exitButtonText}>
+            <Text style={[globalStyles.text, styles.exitButtonText]}>
               お店を出る (レビュー書く!)
             </Text>
           </TouchableOpacity>

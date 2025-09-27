@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
+import { globalStyles } from "../styles/global";
 import GLBCompeitoJar from "../components/GLBCompeitoJar";
 
 export default function Reward() {
@@ -62,7 +63,7 @@ export default function Reward() {
       {/* コンペイトウ表示 */}
       <View style={styles.rewardContainer}>
         <Animated.View style={{ opacity: fadeAnimation }}>
-          <Text style={styles.congratsText}>コンペイトウ{"\n"}GET！</Text>
+          <Text style={[globalStyles.text, styles.congratsText]}>コンペイトウ{"\n"}GET！</Text>
         </Animated.View>
         
         {/* 3Dこんぺいとう単体表示 */}
@@ -72,14 +73,14 @@ export default function Reward() {
         />
         
         <Animated.View style={{ opacity: fadeAnimation }}>
-          <Text style={styles.countMessage}>現在のコンペイトウ数：{compeitoCount}</Text>
+          <Text style={[globalStyles.text, styles.countMessage]}>現在のコンペイトウ数：{compeitoCount}</Text>
         </Animated.View>
       </View>
 
         {/* 戻るボタン */}
         <View style={styles.bottomContainer}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackToMap}>
-            <Text style={styles.backButtonText}>もどる</Text>
+            <Text style={[globalStyles.text, styles.backButtonText]}>もどる</Text>
           </TouchableOpacity>
         </View>
       </View>

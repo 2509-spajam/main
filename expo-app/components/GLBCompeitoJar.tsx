@@ -10,6 +10,27 @@ import { typography } from '../styles/typography';
 // グローバルのTHREEオブジェクトを設定（Metro bundler要求）
 (global as any).THREE = (global as any).THREE || THREE;
 
+// パステルカラーパレット
+const PASTEL_COLORS = [
+  new THREE.Color(0xFFB3BA), // ピンク
+  new THREE.Color(0xFFDFBA), // ピーチ
+  new THREE.Color(0xFFFFBA), // イエロー
+  new THREE.Color(0xBAFFC9), // グリーン
+  new THREE.Color(0xBAE1FF), // ブルー
+  new THREE.Color(0xD4BAFF), // パープル
+];
+
+// ランダムパステルカラーを適用
+const applyRandomPastelColor = (model: THREE.Group) => {
+  const color = PASTEL_COLORS[Math.floor(Math.random() * PASTEL_COLORS.length)];
+  model.traverse((child: any) => {
+    if (child.isMesh && child.material) {
+      child.material = child.material.clone();
+      child.material.color = color;
+    }
+  });
+};
+
 interface CompeitoJarProps {
   count?: number;
   jarRadius?: number;
@@ -27,7 +48,7 @@ export default function GLBCompeitoJar({
   count = 0,
   jarRadius = 1.2,
   jarHeight = 2.0,
-  compeitoSize = 0.01, // さらに小さく調整
+  compeitoSize = 0.0, // さらに小さく調整
   jarColor = 0x87ceeb,
   maxCompeitos = 100,
   onCompeitoAdd,
@@ -131,6 +152,9 @@ export default function GLBCompeitoJar({
 
     // GLBモデルから新しいこんぺいとう作成
     const newCompeito = glbModelRef.current.clone();
+    
+    // パステルカラーを適用
+    applyRandomPastelColor(newCompeito);
     
     // サイズ調整（より小さく）
     newCompeito.scale.setScalar(0.2);
@@ -270,6 +294,10 @@ export default function GLBCompeitoJar({
           
           for (let i = 0; i < currentCount; i++) {
             const compeitoObject = glbModel.clone();
+            
+            // パステルカラーを適用
+            applyRandomPastelColor(compeitoObject);
+            
             compeitoObject.scale.setScalar(0.2); // より小さく調整
             console.log(`✅ Using GLB model for compeito ${i + 1}`);
             

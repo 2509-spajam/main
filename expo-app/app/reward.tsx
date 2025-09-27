@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,20 +6,43 @@ import {
   StyleSheet,
   Animated,
 } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import GLBCompeitoSingle from '../components/GLBCompeitoSingle';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
 import GLBCompeitoJar from "../components/GLBCompeitoJar";
-import CompeitoAnimation from "@/components/CompeitoAnimation";
 
 export default function Reward() {
   const router = useRouter();
   const fadeAnimation = useRef(new Animated.Value(0)).current;
-  const compeitoCount = 5; // 現在のこんぺいとう数
+  const [compeitoCount, setCompeitoCount] = useState<number>(1);
+
+  // コンペイトウ数をlocalStorageから取得・更新
+  const updateCompeitoCount = async () => {
+    try {
+      const storedCount = await AsyncStorage.getItem('countConpeito');
+      let currentCount = 1;
+      
+      if (storedCount !== null) {
+        currentCount = parseInt(storedCount, 10) + 1;
+      }
+      
+      await AsyncStorage.setItem('countConpeito', currentCount.toString());
+      setCompeitoCount(currentCount);
+      console.log(`🍬 コンペイトウ数更新: ${currentCount}`);
+    } catch (error) {
+      console.error('❌ localStorage操作エラー:', error);
+      setCompeitoCount(1);
+    }
+  };
 
   useEffect(() => {
     console.log("🏆 Reward screen loaded");
+    
+    // コンペイトウ数を更新
+    updateCompeitoCount();
 
     // フェードインアニメーション
     Animated.timing(fadeAnimation, {
@@ -36,47 +59,22 @@ export default function Reward() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.container}>
-        {/* ヘッダー */}
-        <View style={styles.header}>
-          <Text style={styles.headerText}>
-            レビューを書いたら「コンペイトウ」ゲット！
-          </Text>
-        </View>
-
-        {/* コンペイトウ表示 */}
-        <View style={styles.rewardContainer}>
-          <Animated.View style={{ opacity: fadeAnimation }}>
-            <Text style={styles.congratsText}>コンペイトウ{"\n"}GET！</Text>
-          </Animated.View>
-          {/* 3Dこんぺいとうビン表示 */}
-          <GLBCompeitoJar
-            count={compeitoCount}
-            interactive={false}
-            showCount={true}
-          />{" "}
-          <Animated.View style={{ opacity: fadeAnimation }}>
-            <Text style={styles.getMessage}>
-              あなたのレビューが{"\n"}お店の発見につながりました！
-            </Text>
-          </Animated.View>
-        </View>
-
-        {/* コンペイトウ表示 */}
-        <View style={styles.rewardContainer}>
-          <Animated.View style={{ opacity: fadeAnimation }}>
-            <Text style={styles.congratsText}>コンペイトウ{"\n"}GET！</Text>
-          </Animated.View>
-
-          {/* 3D/2Dコンペイトウアニメーション */}
-          {/* testMode: 'gl' | 'cube' | 'compeito' | 'fallback' でデバッグ可能 */}
-          <CompeitoAnimation style={styles.compeitoContainer} testMode="cube" />
-
-          <Animated.View style={{ opacity: fadeAnimation }}>
-            <Text style={styles.getMessage}>
-              あなたのレビューが{"\n"}お店の発見につながりました！
-            </Text>
-          </Animated.View>
-        </View>
+      {/* コンペイトウ表示 */}
+      <View style={styles.rewardContainer}>
+        <Animated.View style={{ opacity: fadeAnimation }}>
+          <Text style={styles.congratsText}>コンペイトウ{"\n"}GET！</Text>
+        </Animated.View>
+        
+        {/* 3Dこんぺいとう単体表示 */}
+        <GLBCompeitoSingle
+          size={0.6}
+          rotationSpeed={0.015}
+        />
+        
+        <Animated.View style={{ opacity: fadeAnimation }}>
+          <Text style={styles.countMessage}>現在のコンペイトウ数：{compeitoCount}</Text>
+        </Animated.View>
+      </View>
 
         {/* 戻るボタン */}
         <View style={styles.bottomContainer}>
@@ -148,11 +146,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  getMessage: {
+  countMessage: {
     ...typography.body,
     color: colors.text.secondary,
     textAlign: "center",
     lineHeight: 22,
+    marginTop: 20,
   },
   bottomContainer: {
     padding: 20,

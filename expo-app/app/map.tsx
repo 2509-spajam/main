@@ -16,6 +16,7 @@ import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
+import { fetch } from "expo/fetch";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
 
@@ -122,7 +123,7 @@ export default function MapSample() {
       let pageToken: string | undefined = undefined;
 
       // 1. Nearby Search APIで場所のIDと基本情報を最大3ページ取得する
-      let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${location}&radius=${SEARCH_RADIUS}&keyword=${SEARCH_TYPES_KEYWORD}&type=establishment&key=${GOOGLE_MAPS_API_KEY}`;
+      let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${location}&radius=${SEARCH_RADIUS}&type=restaurant&key=${GOOGLE_MAPS_API_KEY}`;
 
       for (let i = 0; i < 3; i++) {
         if (i > 0) {
@@ -134,8 +135,16 @@ export default function MapSample() {
 
         try {
           const response = await fetch(url);
-          const data = await response.json();
+          const responseText = await response.text();
 
+          let data;
+          try {
+            data = JSON.parse(responseText);
+          } catch (parseError: any) {
+            console.error("JSON Parse Error:", parseError);
+            console.error("Response Text:", responseText);
+            throw new Error(`JSON Parse failed: ${parseError.message}`);
+          }
           if (data.status === "OK") {
             basicPlaces = [...basicPlaces, ...data.results];
             pageToken = data.next_page_token;
@@ -148,9 +157,15 @@ export default function MapSample() {
               data.status,
               data.error_message
             );
-            setErrorMsg(
-              `検索APIエラー: ${data.status}. コンソールを確認してください。`
-            );
+            if (data.status === "REQUEST_DENIED") {
+              setErrorMsg(
+                `APIキー制限エラー: ${data.error_message || data.status}. GCPコンソールでAPIキーの制限設定を確認してください。`
+              );
+            } else {
+              setErrorMsg(
+                `検索APIエラー: ${data.status}. コンソールを確認してください。`
+              );
+            }
             break;
           }
         } catch (error) {
@@ -602,14 +617,6 @@ const styles = StyleSheet.create({
     color: colors.text.dark,
     lineHeight: 20,
   },
-  // ★お店に入るボタン (モーダル内) のスタイル
-  enterStoreButton: {
-    backgroundColor: colors.button.primary,
-    paddingVertical: 16,
-    borderRadius: 25,
-    alignItems: "center",
-    marginTop: 10,
-  },
   // 元のスタイル (地図画面のボタン)
   bottomContainer: {
     padding: 20,
@@ -621,9 +628,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 25,
     alignItems: "center",
-  },
-  enterButtonText: {
-    ...typography.button,
-    color: colors.text.white,
   },
 });

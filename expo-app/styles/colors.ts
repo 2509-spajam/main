@@ -10,6 +10,7 @@ export const colors = {
     light: "#999999",
     white: "#FFFFFF",
     danger: "#FF4444",
+    dark: "#333333",
   },
   map: {
     water: "#B3D9FF",

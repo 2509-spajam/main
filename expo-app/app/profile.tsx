@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -16,27 +15,9 @@ import { useProfile } from "../hooks/useProfile";
 
 export default function Profile() {
   const router = useRouter();
-  const { profile, loading, resetStats } = useProfile();
+  const { profile, loading } = useProfile();
 
-  const handleResetStats = () => {
-    Alert.alert(
-      "統計データのリセット",
-      "すべての統計データをリセットしますか？この操作は取り消せません。",
-      [
-        { text: "キャンセル", style: "cancel" },
-        {
-          text: "リセット",
-          style: "destructive",
-          onPress: resetStats,
-        },
-      ]
-    );
-  };
 
-  const formatJoinDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return `${date.getFullYear()}年${date.getMonth() + 1}月から参加`;
-  };
 
   if (loading) {
     return (
@@ -65,20 +46,17 @@ export default function Profile() {
           <Text style={styles.headerTitle}>プロフィール</Text>
         </View>
 
-        {/* ユーザー基本情報 */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <Image
-              source={require("../assets/images/react-logo.png")}
-              style={styles.avatar}
-              resizeMode="contain"
-            />
-          </View>
-          <Text style={styles.username}>{profile.username}</Text>
-          <Text style={styles.joinDate}>
-            {formatJoinDate(profile.joinDate)}
-          </Text>
+        {/* プロフィール情報 */}
+        <View style={styles.profileSection}>
+          <Image
+            source={require("../assets/images/react-logo.png")}
+            style={styles.profileAvatar}
+            resizeMode="contain"
+          />
+          <Text style={styles.profileUsername}>{profile.username}</Text>
         </View>
+
+
 
         {/* 統計情報 */}
         <View style={styles.statsContainer}>
@@ -97,43 +75,17 @@ export default function Profile() {
               <Text style={styles.statLabel}>獲得コンペイトウ 🍬</Text>
             </View>
           </View>
-
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{profile.reviewedStores}</Text>
-              <Text style={styles.statLabel}>レビューした店舗数</Text>
-            </View>
-
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{profile.monthlyReviews}</Text>
-              <Text style={styles.statLabel}>今月のレビュー数</Text>
-            </View>
-          </View>
         </View>
 
-        {/* 設定・その他 */}
-        <View style={styles.settingsContainer}>
-          <Text style={styles.sectionTitle}>設定</Text>
-
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingText}>通知設定</Text>
-            <Text style={styles.settingArrow}>→</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingText}>ヘルプ・サポート</Text>
-            <Text style={styles.settingArrow}>→</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={handleResetStats}
-          >
-            <Text style={[styles.settingText, styles.dangerText]}>
-              統計データをリセット
+        {/* 3D表示スペース */}
+        <View style={styles.display3DContainer}>
+          <Text style={styles.sectionTitle}>コンペイトウコレクション</Text>
+          <View style={styles.placeholder3D}>
+            <Text style={styles.placeholderText}>3D表示予定</Text>
+            <Text style={styles.placeholderSubText}>
+              獲得したコンペイトウ: {profile.totalKompeito}個
             </Text>
-            <Text style={styles.settingArrow}>→</Text>
-          </TouchableOpacity>
+          </View>
         </View>
 
         {/* 余白 */}
@@ -178,40 +130,26 @@ const styles = StyleSheet.create({
     ...typography.heading,
     color: colors.text.white,
   },
-  profileCard: {
-    backgroundColor: colors.surface,
-    marginHorizontal: 20,
-    marginTop: 20,
-    padding: 24,
-    borderRadius: 16,
+  profileSection: {
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
   },
-  avatarContainer: {
-    marginBottom: 16,
-  },
-  avatar: {
+  profileAvatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
     backgroundColor: colors.background,
+    marginBottom: 12,
   },
-  username: {
+  profileUsername: {
     ...typography.heading,
     color: colors.text.primary,
-    marginBottom: 8,
   },
-  joinDate: {
-    ...typography.caption,
-    color: colors.text.secondary,
-  },
+
   statsContainer: {
     marginHorizontal: 20,
-    marginTop: 24,
+    marginTop: 20,
   },
   sectionTitle: {
     ...typography.subheading,
@@ -248,29 +186,30 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     textAlign: "center",
   },
-  settingsContainer: {
+  display3DContainer: {
     marginHorizontal: 20,
     marginTop: 32,
   },
-  settingItem: {
+  placeholder3D: {
     backgroundColor: colors.surface,
-    flexDirection: "row",
-    justifyContent: "space-between",
+    padding: 40,
+    borderRadius: 16,
     alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    minHeight: 200,
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  placeholderText: {
+    ...typography.subheading,
+    color: colors.text.secondary,
     marginBottom: 8,
-    borderRadius: 12,
   },
-  settingText: {
-    ...typography.body,
-    color: colors.text.primary,
-  },
-  dangerText: {
-    color: colors.text.danger,
-  },
-  settingArrow: {
-    ...typography.body,
+  placeholderSubText: {
+    ...typography.caption,
     color: colors.text.light,
   },
   bottomSpacing: {

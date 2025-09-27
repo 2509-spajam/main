@@ -12,6 +12,7 @@ import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
 import { useProfile } from "../hooks/useProfile";
+import BottleDisplay3D from "../components/BottleDisplay3D";
 
 export default function Profile() {
   const router = useRouter();
@@ -80,11 +81,13 @@ export default function Profile() {
         {/* 3D表示スペース */}
         <View style={styles.display3DContainer}>
           <Text style={styles.sectionTitle}>コンペイトウコレクション</Text>
-          <View style={styles.placeholder3D}>
-            <Text style={styles.placeholderText}>3D表示予定</Text>
-            <Text style={styles.placeholderSubText}>
-              獲得したコンペイトウ: {profile.totalKompeito}個
-            </Text>
+          <View style={styles.bottle3D}>
+            <BottleDisplay3D style={styles.bottle3DInner} />
+            <View style={styles.bottle3DOverlay}>
+              <Text style={styles.bottleText}>
+                獲得したコンペイトウ: {profile.totalKompeito}個
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -190,27 +193,33 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 32,
   },
-  placeholder3D: {
+  bottle3D: {
     backgroundColor: colors.surface,
-    padding: 40,
     borderRadius: 16,
-    alignItems: "center",
-    minHeight: 200,
-    justifyContent: "center",
+    height: 250,
+    position: 'relative',
+    overflow: 'hidden',
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  placeholderText: {
-    ...typography.subheading,
-    color: colors.text.secondary,
-    marginBottom: 8,
+  bottle3DInner: {
+    flex: 1,
   },
-  placeholderSubText: {
+  bottle3DOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: 12,
+  },
+  bottleText: {
     ...typography.caption,
-    color: colors.text.light,
+    color: colors.text.white,
+    textAlign: 'center',
   },
   bottomSpacing: {
     height: 32,

@@ -5,21 +5,20 @@ import {
   Text,
   Dimensions,
   TouchableOpacity,
-  Alert, // エラーメッセージ表示用
-  Modal, // ★追加: 詳細表示用のモーダル
-  Image, // ★追加: 写真表示用
+  Alert,
+  Modal,
+  Image,
+  ActivityIndicator, // ローディング用に追加
 } from "react-native";
 // MapViewとMarkerはreact-native-mapsからインポート
 import MapView, { Marker, Region } from "react-native-maps";
 import * as Location from "expo-location";
-import { useRouter } from "expo-router"; // expo-router のインポートはそのまま維持
+import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import { fetch } from "expo/fetch";
-
-// ===============================================
-// APIキーと型の定義
-// ===============================================
+import { colors } from "../styles/colors";
+import { typography } from "../styles/typography";
 
 // ★★★ ここにあなたのGoogle Maps APIキーを挿入してください ★★★
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAP_API_KEY;
@@ -50,46 +49,35 @@ type PlaceMarker = {
 };
 
 // ===============================================
-// ダミーのスタイル・カラー定義 (動作確認用)
+// 距離計算ヘルパー関数
 // ===============================================
 
-// ユーザーのプロジェクトに合わせて実際の`colors`と`typography`に置き換えてください。
-const colors = {
-  background: "#f0f0f0",
-  primary: "#4CAF50",
-  text: {
-    white: "#ffffff",
-    secondary: "#666666",
-    dark: "#333333",
-  },
-  button: {
-    primary: "#FF9800",
-    secondary: "#9E9E9E", // 閉じるボタン用に新しい色を追加
-  },
-  map: {
-    water: "#AECBFA",
-  },
-  modal: {
-    background: "#ffffff",
-  },
-};
+/**
+ * 2点間の距離をメートル単位で計算します (Haversineの公式を使用)
+ * @param lat1 1点目の緯度
+ * @param lon1 1点目の経度
+ * @param lat2 2点目の緯度
+ * @param lon2 2点目の経度
+ * @returns 距離 (メートル)
+ */
+const getDistance = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number => {
+  const R = 6371e3; // 地球の半径 (メートル)
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
-const typography = {
-  heading: {
-    fontSize: 20,
-    fontWeight: "bold" as "bold",
-  },
-  subHeading: {
-    fontSize: 18,
-    fontWeight: "600" as "600",
-  },
-  body: {
-    fontSize: 16,
-  },
-  button: {
-    fontSize: 18,
-    fontWeight: "600" as "600",
-  },
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // 距離 (メートル)
 };
 
 // ===============================================
@@ -99,29 +87,33 @@ const typography = {
 export default function MapSample() {
   const router = useRouter();
 
-  // 現在地の表示範囲
+  // ... (既存の useState 定義) ...
   const [initRegion, setInitRegion] = useState<Region | null>(null);
-  // エラーメッセージ
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  // 取得した飲食店マーカーデータ
   const [places, setPlaces] = useState<PlaceMarker[]>([]);
-  // ローディング状態
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  // ★追加: 選択されたマーカーの情報 (Modal表示に使用)★
   const [selectedPlace, setSelectedPlace] = useState<PlaceMarker | null>(null);
 
-  // Photo ReferenceからGoogle Places Photo APIのURLを生成するヘルパー関数
+  // 🌟 ユーザーの現在地を保持するステートを追加 🌟
+  const [location, setLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  // 🌟 ボタンの有効/無効を判定する半径 (50m) 🌟
+  const ENTER_RADIUS_METER = 5000;
+
+  // Photo ReferenceからGoogle Places Photo APIのURLを生成するヘルパー関数 (変更なし)
   const getPhotoUrl = (photoRef: string) => {
-    // 幅400ピクセルに設定
+    // ... (既存のロジック) ...
     return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${GOOGLE_MAPS_API_KEY}`;
   };
 
-  // マーカーがタップされたときのハンドラー
+  // マーカーがタップされたときのハンドラー (変更なし)
   const handleMarkerPress = (place: PlaceMarker) => {
     setSelectedPlace(place);
   };
 
-  // Places APIから飲食店情報を取得する関数
+  // Places APIから飲食店情報を取得する関数 (変更なし)
   const fetchPlaces = useCallback(
     async (latitude: number, longitude: number) => {
       setIsLoading(true);
@@ -233,8 +225,8 @@ export default function MapSample() {
     []
   );
 
+  // --- 🌟 useEffect: 現在地取得とAPIコール 🌟 ---
   useEffect(() => {
-    // 位置情報のアクセス許可を取り、現在地情報を取得する
     const getCurrentLocation = async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
@@ -244,10 +236,13 @@ export default function MapSample() {
       }
 
       try {
-        const location = await Location.getCurrentPositionAsync({});
-        const { latitude, longitude } = location.coords;
+        const locationData = await Location.getCurrentPositionAsync({});
+        const { latitude, longitude } = locationData.coords;
 
-        // 1. マップの初期表示領域を設定
+        // 🌟 1. 現在地ステートを更新 🌟
+        setLocation({ latitude, longitude });
+
+        // 2. マップの初期表示領域を設定
         setInitRegion({
           latitude: latitude,
           longitude: longitude,
@@ -255,24 +250,46 @@ export default function MapSample() {
           longitudeDelta: 0.05,
         });
 
-        // 2. 現在地情報を使用して飲食店情報を取得
+        // 3. 現在地情報を使用して飲食店情報を取得
         const placeMarkers = await fetchPlaces(latitude, longitude);
         setPlaces(placeMarkers);
       } catch (error) {
         console.error("現在地情報取得エラー：", error);
         setErrorMsg("現在地情報の取得中にエラーが発生しました。");
+      } finally {
         setIsLoading(false);
       }
     };
     getCurrentLocation();
-  }, [fetchPlaces]); // fetchPlacesを依存配列に追加
+  }, [fetchPlaces]);
 
   // ★追加: モーダル内のお店の入るボタンのハンドラー
   const handleModalEnterStore = () => {
-    if (selectedPlace) {
-      // ここに選択されたお店ID (selectedPlace.id) を使った処理を追加できます
-      setSelectedPlace(null); // モーダルを閉じる
-      router.push(`/${selectedPlace?.id}/timer` as any); // メイン画面の「お店に入る」ボタンと同じアクション
+    if (!selectedPlace) return;
+
+    // 🌟 距離を再計算して、50m以内か最終確認 🌟
+    if (location) {
+      const distance = getDistance(
+        location.latitude,
+        location.longitude,
+        selectedPlace.latitude,
+        selectedPlace.longitude
+      );
+
+      if (distance <= ENTER_RADIUS_METER) {
+        setSelectedPlace(null);
+        // Dynamic Routeへの遷移
+        router.push(`/${selectedPlace.id}/timer` as any);
+      } else {
+        // 50mを超えている場合はエラーアラート
+        Alert.alert(
+          "距離エラー",
+          `お店に入るには半径${ENTER_RADIUS_METER}m以内に移動してください。(現在地からの距離: 約${Math.round(distance)}m)`,
+          [{ text: "OK" }]
+        );
+      }
+    } else {
+      Alert.alert("エラー", "現在地情報が取得できていません。");
     }
   };
 
@@ -284,12 +301,30 @@ export default function MapSample() {
       ? getPhotoUrl(selectedPlace.photoReference)
       : null;
 
+    // 🌟 ボタンの有効/無効を判定 🌟
+    let isEnterButtonDisabled = true;
+    let distanceMessage = "現在地を計算中...";
+
+    if (location) {
+      const distance = getDistance(
+        location.latitude,
+        location.longitude,
+        selectedPlace.latitude,
+        selectedPlace.longitude
+      );
+
+      // 50m以内であればボタンを有効化
+      isEnterButtonDisabled = distance > ENTER_RADIUS_METER;
+      distanceMessage = `現在地からの距離: 約${Math.round(distance)}m`;
+    }
+
     return (
       <Modal
+        // ... (Modalのプロパティはそのまま) ...
         animationType="slide"
         transparent={true}
         visible={!!selectedPlace}
-        onRequestClose={() => setSelectedPlace(null)} // Androidの戻るボタン対応
+        onRequestClose={() => setSelectedPlace(null)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -304,7 +339,7 @@ export default function MapSample() {
             {/* タイトルと写真 */}
             <Text style={styles.modalTitle}>{selectedPlace.title}</Text>
 
-            {/* 写真の表示 */}
+            {/* 写真の表示は省略 */}
             {photoUrl ? (
               <Image
                 source={{ uri: photoUrl }}
@@ -324,12 +359,23 @@ export default function MapSample() {
               {selectedPlace.description}
             </Text>
 
+            {/* 🌟 距離の表示 🌟 */}
+            <Text style={styles.distanceText}>{distanceMessage}</Text>
+
             {/* お店に入るボタン (下部に大きく配置) */}
             <TouchableOpacity
-              style={styles.enterStoreButton}
+              style={[
+                styles.enterStoreButton,
+                isEnterButtonDisabled && styles.disabledButton, // 無効時のスタイルを適用
+              ]}
               onPress={handleModalEnterStore}
+              disabled={isEnterButtonDisabled} // 50m以上離れている場合は無効
             >
-              <Text style={styles.enterButtonText}>お店に入る</Text>
+              <Text style={styles.enterButtonText}>
+                {isEnterButtonDisabled
+                  ? `入店不可 (${ENTER_RADIUS_METER}m以内)`
+                  : "お店に入る"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -337,6 +383,7 @@ export default function MapSample() {
     );
   };
 
+  // ... (return内のコンポーネントは変更なし) ...
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.container}>
@@ -376,8 +423,8 @@ export default function MapSample() {
                 }}
                 title={place.title}
                 description={place.description}
-                pinColor="blue" // 飲食店マーカーは青色に設定
-                onPress={() => handleMarkerPress(place)} // ★追加: タップ時の処理
+                pinColor="blue"
+                onPress={() => handleMarkerPress(place)}
               />
             ))}
           </MapView>
@@ -386,6 +433,11 @@ export default function MapSample() {
         {/* ローディングインジケーター */}
         {isLoading && (
           <View style={styles.loadingOverlay}>
+            <ActivityIndicator
+              size="large"
+              color={colors.primary}
+              style={{ marginBottom: 10 }}
+            />
             <Text style={styles.loadingText}>
               場所を検索・フィルタリング中です...
             </Text>
@@ -408,6 +460,36 @@ export default function MapSample() {
 }
 
 const styles = StyleSheet.create({
+  // ... (既存のスタイルは省略) ...
+
+  // 🌟 距離表示用テキストのスタイルを追加 🌟
+  distanceText: {
+    ...typography.body,
+    textAlign: "center",
+    color: colors.text.secondary,
+    marginBottom: 10,
+  },
+  // 🌟 無効時のボタンのスタイルを追加 🌟
+  disabledButton: {
+    backgroundColor: colors.button.secondary, // 無効時の色
+    opacity: 0.8,
+  },
+  enterStoreButton: {
+    backgroundColor: colors.button.primary,
+    paddingVertical: 16,
+    borderRadius: 25,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  enterButtonText: {
+    ...typography.button,
+    color: colors.text.white,
+  },
+  closeButtonText: {
+    ...typography.body,
+    color: colors.text.white,
+  },
+  // ... (他のスタイルは変更なし) ...
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -477,18 +559,18 @@ const styles = StyleSheet.create({
   // ★Modal関連のスタイル更新
   modalOverlay: {
     flex: 1,
-    justifyContent: "flex-end", // 画面の下から表示
+    justifyContent: "flex-end",
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
-    backgroundColor: colors.modal.background,
+    backgroundColor: colors.background,
     padding: 20,
-    paddingTop: 40, // Xボタンのためのスペースを確保
+    paddingTop: 40,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     width: "100%",
     maxHeight: "75%",
-    position: "relative", // Xボタンを絶対配置するために必要
+    position: "relative",
   },
   modalTitle: {
     ...typography.heading,
@@ -527,21 +609,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 15,
     zIndex: 20,
-    backgroundColor: colors.button.secondary + "33", // 薄いグレー
+    backgroundColor: colors.button.secondary + "33",
   },
   closeXButtonText: {
     fontSize: 20,
     fontWeight: "bold",
     color: colors.text.dark,
     lineHeight: 20,
-  },
-  // ★お店に入るボタン (モーダル内) のスタイル
-  enterStoreButton: {
-    backgroundColor: colors.button.primary,
-    paddingVertical: 16,
-    borderRadius: 25,
-    alignItems: "center",
-    marginTop: 10,
   },
   // 元のスタイル (地図画面のボタン)
   bottomContainer: {
@@ -554,9 +628,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 25,
     alignItems: "center",
-  },
-  enterButtonText: {
-    ...typography.button,
-    color: colors.text.white,
   },
 });

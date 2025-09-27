@@ -172,9 +172,8 @@ export default function Timer() {
 
   const handleExitStore = async () => {
     await resetTimer(); // タイマー状態をクリア
-    router.push("/review" as any); // /review に遷移
+    router.push(`/${id}/review` as any); // /review に遷移
   };
-
   const timerText = formatTime(remainingTime);
 
   // --- ローディング/エラー表示 ---

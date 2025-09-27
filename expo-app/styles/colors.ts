@@ -1,31 +1,32 @@
 export const colors = {
-  primary: '#FF6B35',
-  secondary: '#F7931E', 
-  accent: '#FFD23F',
-  background: '#FFFFFF',
-  surface: '#F5F5F5',
+  primary: "#FF6B35",
+  secondary: "#F7931E",
+  accent: "#FFD23F",
+  background: "#FFFFFF",
+  surface: "#F5F5F5",
   text: {
-    primary: '#333333',
-    secondary: '#666666',
-    light: '#999999',
-    white: '#FFFFFF'
+    primary: "#333333",
+    secondary: "#666666",
+    light: "#999999",
+    white: "#FFFFFF",
+    danger: "#FF4444",
   },
   map: {
-    water: '#B3D9FF',
-    land: '#F0F0F0',
-    marker: '#FF4444'
+    water: "#B3D9FF",
+    land: "#F0F0F0",
+    marker: "#FF4444",
   },
   button: {
-    primary: '#FF6B35',
-    secondary: '#F7931E',
-    disabled: '#CCCCCC'
+    primary: "#FF6B35",
+    secondary: "#F7931E",
+    disabled: "#CCCCCC",
   },
   timer: {
-    background: '#FFF8DC',
-    text: '#333333'
+    background: "#FFF8DC",
+    text: "#333333",
   },
   reward: {
-    gold: '#FFD700',
-    background: '#FFF8DC'
-  }
+    gold: "#FFD700",
+    background: "#FFF8DC",
+  },
 };

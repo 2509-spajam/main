@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -11,8 +11,9 @@ import {
   ActivityIndicator, // ローディング用に追加
 } from "react-native";
 // MapViewとMarkerはreact-native-mapsからインポート
-import MapView, { Marker, Region } from "react-native-maps";
+import MapView, { Marker, Region, Polyline } from "react-native-maps";
 import * as Location from "expo-location";
+import { Magnetometer } from "expo-sensors";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
@@ -66,6 +67,21 @@ type PlaceMarker = {
   photoReference?: string; // 写真の参照ID
 };
 
+// 経路データの型定義
+type RouteData = {
+  coordinates: Array<{
+    latitude: number;
+    longitude: number;
+  }>;
+  distance: string;
+  duration: string;
+  steps: Array<{
+    instruction: string;
+    distance: string;
+    duration: string;
+  }>;
+};
+
 // ===============================================
 // 距離計算ヘルパー関数
 // ===============================================
@@ -98,6 +114,44 @@ const getDistance = (
   return R * c; // 距離 (メートル)
 };
 
+/**
+ * 2点間の方位角を計算します（北を0度とする）
+ * @param lat1 現在地の緯度
+ * @param lon1 現在地の経度
+ * @param lat2 目的地の緯度
+ * @param lon2 目的地の経度
+ * @returns 方位角 (0-360度)
+ */
+const getBearing = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number => {
+  console.log(
+    `getBearing計算: (${lat1.toFixed(6)}, ${lon1.toFixed(6)}) → (${lat2.toFixed(6)}, ${lon2.toFixed(6)})`
+  );
+
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x =
+    Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+
+  console.log(`getBearing中間計算: y=${y.toFixed(6)}, x=${x.toFixed(6)}`);
+
+  let bearing = Math.atan2(y, x) * (180 / Math.PI);
+  console.log(`getBearing生の角度: ${bearing.toFixed(1)}°`);
+
+  // 0-360度の範囲に正規化
+  bearing = (bearing + 360) % 360;
+  console.log(`getBearing正規化後: ${bearing.toFixed(1)}°`);
+
+  return bearing;
+};
+
 // ===============================================
 // メインコンポーネント
 // ===============================================
@@ -124,9 +178,556 @@ export default function MapSample() {
     longitude: number;
   } | null>(null);
 
+  // 🌟 経路モード用の動的region管理 🌟
+  const [routeRegion, setRouteRegion] = useState<Region | null>(null);
+
+  // 🌟 経路表示関連のstate追加 🌟
+  const [isRouteMode, setIsRouteMode] = useState<boolean>(false);
+  const [routeData, setRouteData] = useState<RouteData | null>(null);
+  const [isLoadingRoute, setIsLoadingRoute] = useState<boolean>(false);
+  const [routeTargetPlace, setRouteTargetPlace] = useState<PlaceMarker | null>(
+    null
+  );
+
+  // 🌟 コンパス機能関連のstate追加 🌟
+  const [heading, setHeading] = useState<number>(0);
+  const [magnetometerSubscription, setMagnetometerSubscription] =
+    useState<any>(null);
+
+  // 🌟 スムージング用の前回の角度を保存 🌟
+  const [lastHeading, setLastHeading] = useState<number>(0);
+
+  // 🌟 MapViewのref追加 🌟
+  const mapRef = useRef<MapView>(null);
+
+  // 🌟 位置情報監視用のref 🌟
+  const locationSubscriptionRef = useRef<any>(null);
+
+  // 🌟 経路上で現在地に最も近い座標点を見つける関数 🌟
+  const findNearestRoutePoint = useCallback(
+    (
+      currentLocation: { latitude: number; longitude: number },
+      routeCoordinates: Array<{ latitude: number; longitude: number }>
+    ) => {
+      if (!routeCoordinates || routeCoordinates.length === 0) {
+        return null;
+      }
+
+      let nearestIndex = 0;
+      let minDistance = getDistance(
+        currentLocation.latitude,
+        currentLocation.longitude,
+        routeCoordinates[0].latitude,
+        routeCoordinates[0].longitude
+      );
+
+      for (let i = 1; i < routeCoordinates.length; i++) {
+        const distance = getDistance(
+          currentLocation.latitude,
+          currentLocation.longitude,
+          routeCoordinates[i].latitude,
+          routeCoordinates[i].longitude
+        );
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestIndex = i;
+        }
+      }
+
+      return { index: nearestIndex, distance: minDistance };
+    },
+    []
+  );
+
+  // 🌟 現在地から次の進行方向を計算する関数 🌟
+  const getNextDirectionFromRoute = useCallback(() => {
+    console.log("=== getNextDirectionFromRoute 開始 ===");
+    console.log("location:", location);
+    console.log("routeData:", routeData);
+    console.log(
+      "routeData?.coordinates?.length:",
+      routeData?.coordinates?.length
+    );
+
+    if (
+      !location ||
+      !routeData ||
+      !routeData.coordinates ||
+      routeData.coordinates.length < 2
+    ) {
+      console.log("必要なデータが不足しています");
+      return null;
+    }
+
+    // 経路座標の最初の数点をログ出力
+    console.log("経路座標の最初の5点:");
+    routeData.coordinates.slice(0, 5).forEach((coord, index) => {
+      console.log(
+        `  [${index}]: (${coord.latitude.toFixed(6)}, ${coord.longitude.toFixed(6)})`
+      );
+    });
+
+    // 現在地に最も近い経路上の点を見つける
+    const nearestPoint = findNearestRoutePoint(location, routeData.coordinates);
+    if (!nearestPoint) {
+      console.log("最寄りの経路点が見つかりませんでした");
+      return null;
+    }
+
+    console.log(
+      `最寄りの経路点: インデックス${nearestPoint.index}, 距離${nearestPoint.distance.toFixed(1)}m`
+    );
+
+    const { index } = nearestPoint;
+    const routeCoordinates = routeData.coordinates;
+
+    // 次の進行方向を計算するための座標を決定
+    let nextPointIndex = index + 1;
+
+    // 経路の終点に近い場合は、少し先の点を使用
+    if (nextPointIndex >= routeCoordinates.length) {
+      nextPointIndex = routeCoordinates.length - 1;
+      console.log(
+        `経路の終点に到達。最後の点を使用: インデックス${nextPointIndex}`
+      );
+    }
+
+    // より先の点を使用して方向を安定化（最低でも3点先、または50m先の点を使用）
+    for (let i = index + 1; i < routeCoordinates.length; i++) {
+      const distanceToPoint = getDistance(
+        routeCoordinates[index].latitude,
+        routeCoordinates[index].longitude,
+        routeCoordinates[i].latitude,
+        routeCoordinates[i].longitude
+      );
+
+      console.log(`経路点[${i}]までの距離: ${distanceToPoint.toFixed(1)}m`);
+
+      // 50m以上先の点、または経路上で3点以上先の点を使用
+      if (distanceToPoint >= 50 || i >= index + 3) {
+        nextPointIndex = i;
+        console.log(
+          `次の目標点を決定: インデックス${nextPointIndex}, 距離${distanceToPoint.toFixed(1)}m`
+        );
+        break;
+      }
+    }
+
+    console.log(
+      `現在地: (${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)})`
+    );
+    console.log(
+      `次の目標点: (${routeCoordinates[nextPointIndex].latitude.toFixed(6)}, ${routeCoordinates[nextPointIndex].longitude.toFixed(6)})`
+    );
+
+    // 現在地から次の進行方向への方位角を計算
+    const bearing = getBearing(
+      location.latitude,
+      location.longitude,
+      routeCoordinates[nextPointIndex].latitude,
+      routeCoordinates[nextPointIndex].longitude
+    );
+
+    console.log(`計算された方位角: ${bearing.toFixed(1)}°`);
+    console.log("=== getNextDirectionFromRoute 終了 ===");
+
+    return bearing;
+  }, [location, routeData, findNearestRoutePoint]);
+
+  // 🌟 フォールバック用の直線方向計算関数 🌟
+  const getDirectRouteDirection = useCallback(() => {
+    if (!location || !routeTargetPlace) {
+      return null;
+    }
+
+    // 現在地から目的地への直線方位角を計算
+    const bearing = getBearing(
+      location.latitude,
+      location.longitude,
+      routeTargetPlace.latitude,
+      routeTargetPlace.longitude
+    );
+
+    console.log(
+      `直線方向: 現在地(${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}) → 目的地(${routeTargetPlace.latitude.toFixed(4)}, ${routeTargetPlace.longitude.toFixed(4)}) = ${bearing.toFixed(1)}°`
+    );
+
+    return bearing;
+  }, [location, routeTargetPlace]);
+
   // Places API (New)用の写真URL生成関数
   const getPhotoUrl = (photoName: string) => {
     return `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=400&key=${GOOGLE_MAPS_API_KEY}`;
+  };
+
+  // 🌟 位置情報の監視を開始する関数 🌟
+  const startLocationTracking = useCallback(async () => {
+    if (!isRouteMode) return;
+
+    console.log("位置情報の監視を開始");
+
+    try {
+      // 位置情報の監視を開始
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.BestForNavigation,
+          timeInterval: 2000, // 2秒間隔
+          distanceInterval: 5, // 5m移動したら更新
+        },
+        (newLocation) => {
+          const { latitude, longitude } = newLocation.coords;
+
+          console.log(
+            `位置情報更新: (${latitude.toFixed(6)}, ${longitude.toFixed(6)})`
+          );
+
+          // 現在地ステートを更新
+          setLocation({ latitude, longitude });
+
+          // 経路モード中であれば地図の向きを更新
+          if (isRouteMode && mapRef.current) {
+            // まず経路データから次の進行方向を計算
+            let nextDirection = getNextDirectionFromRoute();
+
+            // 経路データが利用できない場合は直線方向をフォールバックとして使用
+            if (nextDirection === null && routeTargetPlace) {
+              nextDirection = getDirectRouteDirection();
+            }
+
+            if (nextDirection !== null) {
+              console.log(
+                `位置更新により地図を次の進行方向${nextDirection.toFixed(1)}°に向ける...`
+              );
+
+              // animateCameraを使用して地図を次の進行方向に向ける
+              mapRef.current.animateCamera(
+                {
+                  center: {
+                    latitude,
+                    longitude,
+                  },
+                  heading: nextDirection, // 次の進行方向を設定
+                  pitch: 0, // 傾きは0
+                  zoom: 17, // ズームレベル（経路表示に適した値）
+                },
+                { duration: 1000 }
+              ); // 1秒でスムーズにアニメーション
+
+              setHeading(nextDirection);
+            }
+          }
+        }
+      );
+
+      locationSubscriptionRef.current = subscription;
+    } catch (error) {
+      console.error("位置情報監視の開始に失敗:", error);
+    }
+  }, [
+    isRouteMode,
+    routeTargetPlace,
+    getNextDirectionFromRoute,
+    getDirectRouteDirection,
+  ]);
+
+  // 🌟 経路方向コンパス機能: 次の進行方向に地図を向ける 🌟
+  const startRouteCompass = useCallback(() => {
+    console.log("経路方向コンパス開始");
+
+    // 🌟 位置情報の監視を開始 🌟
+    startLocationTracking();
+
+    // 🌟 フォールバック用の定期更新（位置情報監視が失敗した場合用） 🌟
+    const updateInterval = setInterval(() => {
+      if (isRouteMode && location && mapRef.current) {
+        // まず経路データから次の進行方向を計算
+        let nextDirection = getNextDirectionFromRoute();
+
+        // 経路データが利用できない場合は直線方向をフォールバックとして使用
+        if (nextDirection === null && routeTargetPlace) {
+          nextDirection = getDirectRouteDirection();
+          console.log("経路データが利用できないため、直線方向を使用");
+        }
+
+        if (nextDirection !== null) {
+          console.log(
+            `フォールバック更新: 地図を次の進行方向${nextDirection.toFixed(1)}°に向ける...`
+          );
+
+          // animateCameraを使用して地図を次の進行方向に向ける
+          mapRef.current.animateCamera(
+            {
+              center: {
+                latitude: location.latitude,
+                longitude: location.longitude,
+              },
+              heading: nextDirection, // 次の進行方向を設定
+              pitch: 0, // 傾きは0
+              zoom: 17, // ズームレベル（経路表示に適した値）
+            },
+            { duration: 1000 }
+          ); // 1秒でスムーズにアニメーション
+
+          setHeading(nextDirection);
+        }
+      }
+    }, 5000); // 5秒間隔でフォールバック更新
+
+    setMagnetometerSubscription(updateInterval);
+  }, [
+    isRouteMode,
+    location,
+    routeTargetPlace,
+    getNextDirectionFromRoute,
+    getDirectRouteDirection,
+    startLocationTracking,
+  ]);
+
+  // 🌟 経路コンパス機能を停止 🌟
+  const stopCompass = useCallback(() => {
+    if (magnetometerSubscription) {
+      console.log("経路方向コンパス停止");
+      clearInterval(magnetometerSubscription);
+      setMagnetometerSubscription(null);
+    }
+
+    // 🌟 位置情報監視も停止 🌟
+    if (locationSubscriptionRef.current) {
+      console.log("位置情報監視停止");
+      locationSubscriptionRef.current.remove();
+      locationSubscriptionRef.current = null;
+    }
+  }, [magnetometerSubscription]);
+
+  // 🌟 経路データ設定後の初期方向設定関数 🌟
+  const setupInitialRouteDirection = useCallback(
+    (newRouteData: RouteData) => {
+      if (!location || !mapRef.current) return;
+
+      console.log("=== 経路データ設定後の初期方向設定 ===");
+      console.log("現在地:", location);
+      console.log("新しい経路データ座標数:", newRouteData.coordinates.length);
+
+      // 新しい経路データを使用して次の進行方向を計算
+      const nearestPoint = findNearestRoutePoint(
+        location,
+        newRouteData.coordinates
+      );
+      if (!nearestPoint) {
+        console.log("最寄りの経路点が見つかりませんでした");
+        return;
+      }
+
+      const { index } = nearestPoint;
+      let nextPointIndex = index + 1;
+
+      // より先の点を使用して方向を安定化
+      for (let i = index + 1; i < newRouteData.coordinates.length; i++) {
+        const distanceToPoint = getDistance(
+          newRouteData.coordinates[index].latitude,
+          newRouteData.coordinates[index].longitude,
+          newRouteData.coordinates[i].latitude,
+          newRouteData.coordinates[i].longitude
+        );
+
+        if (distanceToPoint >= 50 || i >= index + 3) {
+          nextPointIndex = i;
+          break;
+        }
+      }
+
+      if (nextPointIndex >= newRouteData.coordinates.length) {
+        nextPointIndex = newRouteData.coordinates.length - 1;
+      }
+
+      // 現在地から次の進行方向への方位角を計算
+      const bearing = getBearing(
+        location.latitude,
+        location.longitude,
+        newRouteData.coordinates[nextPointIndex].latitude,
+        newRouteData.coordinates[nextPointIndex].longitude
+      );
+
+      console.log(`初期設定: 地図を次の進行方向${bearing.toFixed(1)}°に向ける`);
+
+      mapRef.current.animateCamera(
+        {
+          center: {
+            latitude: location.latitude,
+            longitude: location.longitude,
+          },
+          heading: bearing,
+          pitch: 0,
+          zoom: 17,
+        },
+        { duration: 2000 }
+      );
+
+      console.log("=== 初期方向設定完了 ===");
+    },
+    [location, findNearestRoutePoint]
+  );
+
+  // Google Directions APIを使用した経路取得関数
+  const fetchRoute = useCallback(
+    async (destination: PlaceMarker) => {
+      if (!location || !GOOGLE_MAPS_API_KEY) return;
+
+      setIsLoadingRoute(true);
+
+      const origin = `${location.latitude},${location.longitude}`;
+      const dest = `${destination.latitude},${destination.longitude}`;
+
+      try {
+        const response = await fetch(
+          `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${dest}&mode=walking&key=${GOOGLE_MAPS_API_KEY}`
+        );
+
+        const data = await response.json();
+
+        if (data.status === "OK" && data.routes.length > 0) {
+          const route = data.routes[0];
+          const leg = route.legs[0];
+
+          // Polyline用の座標データを変換
+          const coordinates = decodePolyline(route.overview_polyline.points);
+
+          console.log("=== 経路データ設定 ===");
+          console.log(`経路座標数: ${coordinates.length}点`);
+          console.log("最初の5点:");
+          coordinates.slice(0, 5).forEach((coord, index) => {
+            console.log(
+              `  [${index}]: (${coord.latitude.toFixed(6)}, ${coord.longitude.toFixed(6)})`
+            );
+          });
+          console.log("最後の5点:");
+          coordinates.slice(-5).forEach((coord, index) => {
+            console.log(
+              `  [${coordinates.length - 5 + index}]: (${coord.latitude.toFixed(6)}, ${coord.longitude.toFixed(6)})`
+            );
+          });
+
+          const routeDataObj = {
+            coordinates,
+            distance: leg.distance.text,
+            duration: leg.duration.text,
+            steps: leg.steps.map((step: any) => ({
+              instruction: step.html_instructions.replace(/<[^>]*>/g, ""),
+              distance: step.distance.text,
+              duration: step.duration.text,
+            })),
+          };
+
+          console.log("設定する経路データ:", routeDataObj);
+          setRouteData(routeDataObj);
+
+          // 🌟 経路データ設定直後に初期方向を設定 🌟
+          setupInitialRouteDirection(routeDataObj);
+        }
+      } catch (error) {
+        console.error("経路取得エラー:", error);
+        Alert.alert("エラー", "経路情報の取得に失敗しました。");
+      } finally {
+        setIsLoadingRoute(false);
+      }
+    },
+    [location, setupInitialRouteDirection]
+  );
+
+  // Polyline文字列をデコードする関数
+  const decodePolyline = (polyline: string) => {
+    const coordinates: Array<{ latitude: number; longitude: number }> = [];
+    let index = 0;
+    let lat = 0;
+    let lng = 0;
+
+    while (index < polyline.length) {
+      let shift = 0;
+      let result = 0;
+      let byte;
+
+      do {
+        byte = polyline.charCodeAt(index++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+
+      const deltaLat = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+      lat += deltaLat;
+
+      shift = 0;
+      result = 0;
+
+      do {
+        byte = polyline.charCodeAt(index++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+
+      const deltaLng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+      lng += deltaLng;
+
+      coordinates.push({
+        latitude: lat / 1e5,
+        longitude: lng / 1e5,
+      });
+    }
+
+    return coordinates;
+  };
+
+  // 経路表示モードの開始
+  const handleShowRoute = async () => {
+    if (!selectedPlace) return;
+
+    // 🌟 経路対象の店舗を保存 🌟
+    setRouteTargetPlace(selectedPlace);
+
+    // 🌟 経路データを取得して、成功した場合のみ経路モードを開始 🌟
+    try {
+      await fetchRoute(selectedPlace);
+      setIsRouteMode(true);
+
+      // 🌟 経路方向コンパス機能を開始 🌟
+      startRouteCompass();
+
+      // 🌟 経路表示後にモーダルを閉じる 🌟
+      setSelectedPlace(null);
+    } catch (error) {
+      console.error("経路表示の開始に失敗:", error);
+      Alert.alert("エラー", "経路の表示に失敗しました。");
+    }
+  };
+
+  // 経路表示モードの終了
+  const handleExitRouteMode = () => {
+    setIsRouteMode(false);
+    setRouteData(null);
+    setRouteTargetPlace(null);
+
+    // 🌟 コンパス機能を停止 🌟
+    stopCompass();
+
+    // 🌟 地図を元の表示に戻す 🌟
+    if (initRegion && mapRef.current) {
+      mapRef.current.animateCamera(
+        {
+          center: {
+            latitude: initRegion.latitude,
+            longitude: initRegion.longitude,
+          },
+          heading: 0, // 北向きに戻す
+          pitch: 0,
+          zoom: 15, // 通常のズームレベル
+        },
+        { duration: 1000 }
+      );
+    }
+
+    // 🌟 方位角とrouteRegionをリセット 🌟
+    setHeading(0);
+    setRouteRegion(null);
   };
 
   // 新しいPlaces API (New)を使用した検索関数
@@ -388,6 +989,14 @@ export default function MapSample() {
     getCurrentLocation();
   }, [fetchAllPlaces]);
 
+  // 🌟 コンポーネントアンマウント時のクリーンアップ 🌟
+  useEffect(() => {
+    return () => {
+      // コンポーネントがアンマウントされる際にコンパス機能を停止
+      stopCompass();
+    };
+  }, [stopCompass]);
+
   // ★追加: モーダル内のお店の入るボタンのハンドラー
   const handleModalEnterStore = () => {
     if (!selectedPlace) return;
@@ -476,7 +1085,10 @@ export default function MapSample() {
         animationType="slide"
         transparent={true}
         visible={!!selectedPlace}
-        onRequestClose={() => setSelectedPlace(null)}
+        onRequestClose={() => {
+          setSelectedPlace(null);
+          handleExitRouteMode();
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -541,7 +1153,7 @@ export default function MapSample() {
               </View>
             </View>
 
-            {/* レビュー済みメッセージまたは入店ボタン */}
+            {/* レビュー済みメッセージまたは入店・経路ボタン */}
             {isStoreReviewed ? (
               <View style={styles.reviewedContainer}>
                 <Text style={styles.reviewedMessage}>
@@ -551,8 +1163,9 @@ export default function MapSample() {
                   ご協力ありがとうございました！
                 </Text>
               </View>
-            ) : (
+            ) : !isRouteMode ? (
               <>
+                {/* 通常モード: 入店ボタンと経路表示ボタン */}
                 <TouchableOpacity
                   style={[
                     styles.premiumButton,
@@ -565,13 +1178,25 @@ export default function MapSample() {
                     {isEnterButtonDisabled ? "入店不可" : "入店"}
                   </Text>
                 </TouchableOpacity>
+
+                {/* 経路表示ボタン */}
+                <TouchableOpacity
+                  style={[styles.routeButton]}
+                  onPress={handleShowRoute}
+                  disabled={isLoadingRoute}
+                >
+                  <Text style={styles.routeButtonText}>
+                    {isLoadingRoute ? "経路を取得中..." : "経路を表示"}
+                  </Text>
+                </TouchableOpacity>
+
                 {isEnterButtonDisabled && (
                   <Text style={styles.enterDisabledMessage}>
                     入店するには{ENTER_RADIUS_METER}m以内に移動してください
                   </Text>
                 )}
               </>
-            )}
+            ) : null}
           </View>
         </View>
       </Modal>
@@ -605,57 +1230,92 @@ export default function MapSample() {
       ) : (
         <View style={styles.mapWrapper}>
           <MapView
+            ref={mapRef}
             style={styles.mapContainer}
-            region={initRegion || undefined}
+            // 🌟 経路モード時はregionを無効にしてanimateCameraに任せる 🌟
+            region={!isRouteMode ? initRegion || undefined : undefined}
             showsUserLocation={true}
             provider="google"
             // マップが完全にロードされるまで、initRegionがnullの場合は表示しない
             initialRegion={initRegion || undefined}
+            // 🌟 経路モード時はコンパス機能を有効化 🌟
+            showsCompass={isRouteMode}
+            rotateEnabled={true}
+            // 🌟 経路モード時はユーザーの現在地に追従しない（animateCameraで制御） 🌟
+            followsUserLocation={false}
+            showsMyLocationButton={isRouteMode}
+            // 🌟 より詳細なコントロール 🌟
+            scrollEnabled={true}
+            zoomEnabled={true}
+            pitchEnabled={true}
           >
             {/* 取得した飲食店マーカーの描画 */}
-            {places.map((place) => {
-              // レビュー数を取得（description文字列から抽出）
-              const reviewMatch =
-                place.description.match(/レビュー数: (\d+)件/);
-              const reviewCount = reviewMatch
-                ? parseInt(reviewMatch[1], 10)
-                : 0;
-
-              // 🌟 ユーザーの現在地からの距離を計算してマーカーの色を決定 🌟
-              let markerColor: string | undefined = undefined;
-              if (location) {
-                const distance = getDistance(
-                  location.latitude,
-                  location.longitude,
-                  place.latitude,
-                  place.longitude
-                );
-                // ENTER_RADIUS_METER以内の場合、色を#F7931Eに変更
-                if (distance <= ENTER_RADIUS_METER) {
-                  markerColor = "#F7931E";
+            {places
+              .filter((place) => {
+                // 🌟 経路モード時は目的地のみ表示 🌟
+                if (isRouteMode && routeTargetPlace) {
+                  return place.id === routeTargetPlace.id;
                 }
-              }
+                // 通常モード時はすべて表示
+                if (!isRouteMode) {
+                  return true;
+                }
+                // 経路モードだがrouteTargetPlaceがない場合は非表示
+                return false;
+              })
+              .map((place) => {
+                // レビュー数を取得（description文字列から抽出）
+                const reviewMatch =
+                  place.description.match(/レビュー数: (\d+)件/);
+                const reviewCount = reviewMatch
+                  ? parseInt(reviewMatch[1], 10)
+                  : 0;
 
-              // 🌟 レビュー済み状態を取得 🌟
-              const isReviewed = reviewedStoreIds.has(place.id);
+                // 🌟 ユーザーの現在地からの距離を計算してマーカーの色を決定 🌟
+                let markerColor: string | undefined = undefined;
+                if (location) {
+                  const distance = getDistance(
+                    location.latitude,
+                    location.longitude,
+                    place.latitude,
+                    place.longitude
+                  );
+                  // ENTER_RADIUS_METER以内の場合、色を#F7931Eに変更
+                  if (distance <= ENTER_RADIUS_METER) {
+                    markerColor = "#F7931E";
+                  }
+                }
 
-              return (
-                <Marker
-                  key={`marker-${place.id}`}
-                  coordinate={{
-                    latitude: place.latitude,
-                    longitude: place.longitude,
-                  }}
-                  onPress={() => handleMarkerPress(place)}
-                >
-                  <CustomMarker
-                    reviewCount={reviewCount}
-                    colorOverride={markerColor}
-                    isReviewed={isReviewed}
-                  />
-                </Marker>
-              );
-            })}
+                // 🌟 レビュー済み状態を取得 🌟
+                const isReviewed = reviewedStoreIds.has(place.id);
+
+                return (
+                  <Marker
+                    key={`marker-${place.id}`}
+                    coordinate={{
+                      latitude: place.latitude,
+                      longitude: place.longitude,
+                    }}
+                    onPress={() => handleMarkerPress(place)}
+                  >
+                    <CustomMarker
+                      reviewCount={reviewCount}
+                      colorOverride={markerColor}
+                      isReviewed={isReviewed}
+                    />
+                  </Marker>
+                );
+              })}
+
+            {/* 🌟 経路のPolyline表示 🌟 */}
+            {isRouteMode && routeData && (
+              <Polyline
+                coordinates={routeData.coordinates}
+                strokeColor="#4A90E2"
+                strokeWidth={4}
+                lineDashPattern={[5, 5]}
+              />
+            )}
           </MapView>
 
           {/* パルスアニメーション（現在地の周辺範囲表示） - 軽減版 */}
@@ -672,6 +1332,28 @@ export default function MapSample() {
               <Text style={styles.statsNumber}>{places.length}</Text>件
             </Text>
           </View>
+
+          {/* 🌟 経路モード終了ボタン 🌟 */}
+          {isRouteMode && (
+            <View style={styles.routeExitContainer}>
+              {/* 経路情報表示 */}
+              {routeData && (
+                <View style={styles.routeInfoFloatingCard}>
+                  <Text style={styles.routeInfoFloatingText}>
+                    🚶 徒歩 {routeData.duration} ({routeData.distance})
+                  </Text>
+                </View>
+              )}
+
+              {/* 経路終了ボタン */}
+              <TouchableOpacity
+                style={styles.routeExitButton}
+                onPress={handleExitRouteMode}
+              >
+                <Text style={styles.routeExitButtonText}>経路表示を終了</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 
@@ -1038,5 +1720,109 @@ const styles = StyleSheet.create({
     color: colors.text.white,
     textAlign: "center",
     opacity: 0.9,
+  },
+
+  // 経路表示関連のスタイル
+  routeButton: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    backgroundColor: colors.accent,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  routeButtonText: {
+    ...typography.button,
+    color: colors.text.white,
+    fontWeight: "600",
+  },
+  routeInfoContainer: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#4A90E2",
+  },
+  routeInfoTitle: {
+    ...typography.heading,
+    fontWeight: "bold",
+    marginBottom: 8,
+    color: colors.text.primary,
+  },
+  routeInfoText: {
+    ...typography.body,
+    color: colors.text.secondary,
+    fontSize: 16,
+  },
+  exitRouteButton: {
+    marginHorizontal: 16,
+    backgroundColor: colors.text.secondary,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  exitRouteButtonText: {
+    ...typography.button,
+    color: colors.text.white,
+    fontWeight: "600",
+  },
+
+  // 🌟 新しい経路終了ボタンのスタイル 🌟
+  routeExitContainer: {
+    position: "absolute",
+    bottom: 30,
+    left: 16,
+    right: 16,
+    alignItems: "center",
+    zIndex: 15,
+  },
+  routeInfoFloatingCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  routeInfoFloatingText: {
+    ...typography.body,
+    fontWeight: "600",
+    color: colors.text.primary,
+    textAlign: "center",
+  },
+  routeExitButton: {
+    backgroundColor: "#F7931E", // オレンジ色
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+    minWidth: 200,
+    alignItems: "center",
+    shadowColor: "#F7931E",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  routeExitButtonText: {
+    ...typography.button,
+    color: colors.text.white,
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });

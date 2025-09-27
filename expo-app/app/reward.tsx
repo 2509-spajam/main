@@ -41,7 +41,7 @@ export default function Reward() {
         {/* testMode: 'gl' | 'cube' | 'compeito' | 'fallback' でデバッグ可能 */}
         <CompeitoAnimation 
           style={styles.compeitoContainer} 
-          testMode="gl" 
+          testMode="cube" 
         />
 
         <Animated.View style={{ opacity: fadeAnimation }}>

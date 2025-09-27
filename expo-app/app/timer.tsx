@@ -1,182 +1,44 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useCallback } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   AppState,
-  AppStateStatus,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage"; // AsyncStorageのインポート
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
 import { getCurrentStore } from "../data/mockStores";
-
-// 必要な定数
-const TOTAL_TIME_SECONDS = 10 * 60; // 10分 = 600秒
-const STORAGE_KEY_START_TIME = "@timer_start_time";
-const STORAGE_KEY_TIMER_SESSION = "@timer_session_id"; // セッション管理用
-
-// 秒数をMM:SS形式にフォーマットするヘルパー関数
-const formatTime = (totalSeconds: number): string => {
-  const minutes = Math.floor(Math.max(0, totalSeconds) / 60);
-  const seconds = Math.floor(Math.max(0, totalSeconds) % 60);
-  return `${minutes.toString().padStart(2, "0")}:${seconds
-    .toString()
-    .padStart(2, "0")}`;
-};
+import { useTimer, TIMER_STORAGE_KEYS } from "../hooks/useTimer";
 
 export default function Timer() {
   const router = useRouter();
   const store = getCurrentStore();
 
-  // 状態管理
-  const [remainingTime, setRemainingTime] = useState(TOTAL_TIME_SECONDS);
-  const [isRunning, setIsRunning] = useState(false);
-  const [isTimeUp, setIsTimeUp] = useState(false);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-
-  // タイマーの参照
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const appState = useRef(AppState.currentState);
-
-  // タイマーのリセット
-  const resetTimer = useCallback(async () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    setIsRunning(false);
-    setIsTimeUp(false);
-    setRemainingTime(TOTAL_TIME_SECONDS);
-    setCurrentSessionId(null);
-    await AsyncStorage.multiRemove([
-      STORAGE_KEY_START_TIME,
-      STORAGE_KEY_TIMER_SESSION,
-    ]);
-  }, []);
-
-  // 新しいセッションを開始
-  const startNewSession = useCallback(async () => {
-    const sessionId = Date.now().toString();
-    setCurrentSessionId(sessionId);
-    await AsyncStorage.setItem(STORAGE_KEY_TIMER_SESSION, sessionId);
-    return sessionId;
-  }, []);
-
-  // 時間経過を計算する関数
-  const calculateElapsedTime = useCallback(async () => {
-    const storedStartTime = await AsyncStorage.getItem(STORAGE_KEY_START_TIME);
-    if (storedStartTime) {
-      const startTime = new Date(storedStartTime).getTime();
-      const currentTime = Date.now();
-      const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
-      return elapsedSeconds;
-    }
-    return 0;
-  }, []);
-
-  // タイマーを開始/再開する関数
-  const startTimer = useCallback(
-    async (
-      initialStartTime: number | null = null,
-      sessionId: string | null = null
-    ) => {
-      const startTime = initialStartTime ?? Date.now();
-      const activeSessionId = sessionId ?? (await startNewSession());
-
-      await AsyncStorage.setItem(
-        STORAGE_KEY_START_TIME,
-        new Date(startTime).toISOString()
-      );
-
-      setIsRunning(true);
-      setIsTimeUp(false);
-      setCurrentSessionId(activeSessionId);
-
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-
-      intervalRef.current = setInterval(async () => {
-        const elapsed = await calculateElapsedTime();
-        const newRemainingTime = TOTAL_TIME_SECONDS - elapsed;
-
-        if (newRemainingTime <= 0) {
-          setRemainingTime(0);
-          setIsTimeUp(true);
-          setIsRunning(false);
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-          }
-          await AsyncStorage.removeItem(STORAGE_KEY_START_TIME);
-        } else {
-          setRemainingTime(newRemainingTime);
-        }
-      }, 1000); // 1秒ごとに更新
-    },
-    [calculateElapsedTime, startNewSession]
-  );
-
-  // アプリの状態が変更されたときのハンドラ
-  const handleAppStateChange = useCallback(
-    async (nextAppState: AppStateStatus) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === "active"
-      ) {
-        // アプリがフォアグラウンドに戻ったとき
-        const elapsed = await calculateElapsedTime();
-        const newRemainingTime = TOTAL_TIME_SECONDS - elapsed;
-
-        // バックグラウンドでの経過時間を反映
-        setRemainingTime(Math.max(0, newRemainingTime));
-
-        if (newRemainingTime > 0) {
-          // タイマーがまだ残っている場合は再開
-          const storedStartTime = await AsyncStorage.getItem(
-            STORAGE_KEY_START_TIME
-          );
-          const storedSessionId = await AsyncStorage.getItem(
-            STORAGE_KEY_TIMER_SESSION
-          );
-          if (storedStartTime && storedSessionId === currentSessionId) {
-            // アプリがアクティブな状態に戻ったときに、タイマーを再開させる
-            // 既にisRunningがtrueの場合は、startTimer内で既存のintervalがクリアされるため問題ない
-            startTimer(new Date(storedStartTime).getTime(), storedSessionId);
-          }
-        } else if (newRemainingTime <= 0 && isRunning) {
-          // バックグラウンドで時間が経過していた場合
-          setRemainingTime(0);
-          setIsTimeUp(true);
-          setIsRunning(false);
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-          }
-          await AsyncStorage.removeItem(STORAGE_KEY_START_TIME);
-        }
-      } else if (nextAppState === "background" || nextAppState === "inactive") {
-        // アプリがバックグラウンドに移行したとき
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-        // バックグラウンドでも経過時間は AsyncStorage に保存された開始時刻から計算されるため、
-        // isRunning が true であれば、特に何もしなくてもバックグラウンドでの時間は考慮される
-      }
-      appState.current = nextAppState;
-    },
-    [isRunning, calculateElapsedTime, startTimer, currentSessionId]
-  );
+  // useTimerフックを使用
+  const {
+    remainingTime,
+    isRunning,
+    isTimeUp,
+    currentSessionId,
+    startTimer,
+    resetTimer,
+    formatTime,
+    calculateElapsedTime,
+    handleAppStateChange,
+  } = useTimer();
 
   // 画面がフォーカスされた時の処理（画面に戻った時）
   useFocusEffect(
     useCallback(() => {
       const checkAndResetIfNeeded = async () => {
         const storedSessionId = await AsyncStorage.getItem(
-          STORAGE_KEY_TIMER_SESSION
+          TIMER_STORAGE_KEYS.SESSION
         );
         const storedStartTime = await AsyncStorage.getItem(
-          STORAGE_KEY_START_TIME
+          TIMER_STORAGE_KEYS.START_TIME
         );
 
         // 既存のセッションがある場合
@@ -195,24 +57,15 @@ export default function Timer() {
           } else {
             // 同じセッションの場合は継続（バックグラウンドから復帰等）
             const elapsed = await calculateElapsedTime();
-            const newRemainingTime = TOTAL_TIME_SECONDS - elapsed;
+            const newRemainingTime = 10 * 60 - elapsed; // TOTAL_TIME_SECONDS
 
             if (newRemainingTime > 0) {
-              setRemainingTime(newRemainingTime);
               if (!isRunning) {
                 startTimer(
                   new Date(storedStartTime).getTime(),
                   storedSessionId
                 );
               }
-            } else {
-              setRemainingTime(0);
-              setIsTimeUp(true);
-              setIsRunning(false);
-              await AsyncStorage.multiRemove([
-                STORAGE_KEY_START_TIME,
-                STORAGE_KEY_TIMER_SESSION,
-              ]);
             }
           }
         } else {
@@ -245,9 +98,6 @@ export default function Timer() {
     );
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
       subscription.remove();
     };
   }, [handleAppStateChange]);
@@ -327,7 +177,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 40,
-    // スタートボタンのためにflexを大きく使う
   },
   timerText: {
     ...typography.timer,

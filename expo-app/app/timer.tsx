@@ -36,8 +36,7 @@ export default function Timer() {
       {/* 退店ボタン */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity style={styles.exitButton} onPress={handleExitStore}>
-          <Text style={styles.exitButtonText}>お店を出る
-(レビュー書く!)</Text>
+          <Text style={styles.exitButtonText}>お店を出る (レビュー書く!)</Text>
         </TouchableOpacity>
       </View>
     </View>

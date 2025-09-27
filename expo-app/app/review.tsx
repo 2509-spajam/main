@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
@@ -67,8 +74,11 @@ export default function Review() {
         </View>
 
         {/* 投稿ボタン */}
-        <TouchableOpacity 
-          style={[styles.submitButton, (!rating || !reviewText.trim()) && styles.submitButtonDisabled]} 
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            (!rating || !reviewText.trim()) && styles.submitButtonDisabled,
+          ]}
           onPress={handleSubmitReview}
           disabled={!rating || !reviewText.trim()}
         >

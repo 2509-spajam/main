@@ -1,5 +1,11 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
@@ -20,7 +26,7 @@ export default function Reward() {
         toValue: 1,
         duration: 1000,
         useNativeDriver: true,
-      })
+      }),
     ]).start();
   }, [scaleAnimation, rotateAnimation]);
 
@@ -30,30 +36,31 @@ export default function Reward() {
 
   const rotateInterpolate = rotateAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
+    outputRange: ["0deg", "360deg"],
   });
 
   return (
     <View style={styles.container}>
       {/* ヘッダー */}
       <View style={styles.header}>
-        <Text style={styles.headerText}>レビューを書いたら「コンペイトウ」ゲット！</Text>
+        <Text style={styles.headerText}>
+          レビューを書いたら「コンペイトウ」ゲット！
+        </Text>
       </View>
 
       {/* コンペイトウ表示 */}
       <View style={styles.rewardContainer}>
-        <Text style={styles.congratsText}>コンペイトウ
-GET！</Text>
-        
-        <Animated.View 
+        <Text style={styles.congratsText}>コンペイトウ GET！</Text>
+
+        <Animated.View
           style={[
             styles.compeitoContainer,
             {
               transform: [
                 { scale: scaleAnimation },
-                { rotate: rotateInterpolate }
-              ]
-            }
+                { rotate: rotateInterpolate },
+              ],
+            },
           ]}
         >
           <View style={styles.compeito}>
@@ -61,8 +68,9 @@ GET！</Text>
           </View>
         </Animated.View>
 
-        <Text style={styles.getMessage}>あなたのレビューが
-お店の発見につながりました！</Text>
+        <Text style={styles.getMessage}>
+          あなたのレビューが お店の発見につながりました！
+        </Text>
       </View>
 
       {/* 戻るボタン */}

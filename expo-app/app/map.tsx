@@ -113,6 +113,11 @@ export default function MapSample() {
   const [selectedPlace, setSelectedPlace] = useState<PlaceMarker | null>(null);
   const [isStoreReviewed, setIsStoreReviewed] = useState<boolean>(false);
 
+  // 🌟 レビュー済み店舗のIDを管理するステート 🌟
+  const [reviewedStoreIds, setReviewedStoreIds] = useState<Set<string>>(
+    new Set()
+  );
+
   // 🌟 ユーザーの現在地を保持するステートを追加 🌟
   const [location, setLocation] = useState<{
     latitude: number;
@@ -231,6 +236,11 @@ export default function MapSample() {
     // レビュー済みかどうかをチェック
     const reviewed = await ReviewedStoresManager.isStoreReviewed(place.id);
     setIsStoreReviewed(reviewed);
+
+    // 🌟 レビュー済み状態が変更されている場合は、ステートも更新 🌟
+    if (reviewed && !reviewedStoreIds.has(place.id)) {
+      setReviewedStoreIds((prev) => new Set([...prev, place.id]));
+    }
   };
 
   // 新しいPlaces API (New)を使用したメイン検索関数
@@ -356,6 +366,18 @@ export default function MapSample() {
         // 3. 現在地情報を使用して飲食店情報を取得
         const placeMarkers = await fetchAllPlaces(latitude, longitude);
         setPlaces(placeMarkers);
+
+        // 🌟 4. 各店舗のレビュー済み状態をチェック 🌟
+        const reviewedIds = new Set<string>();
+        for (const place of placeMarkers) {
+          const isReviewed = await ReviewedStoresManager.isStoreReviewed(
+            place.id
+          );
+          if (isReviewed) {
+            reviewedIds.add(place.id);
+          }
+        }
+        setReviewedStoreIds(reviewedIds);
       } catch (error) {
         console.error("現在地情報取得エラー：", error);
         setErrorMsg("現在地情報の取得中にエラーが発生しました。");
@@ -614,6 +636,9 @@ export default function MapSample() {
                 }
               }
 
+              // 🌟 レビュー済み状態を取得 🌟
+              const isReviewed = reviewedStoreIds.has(place.id);
+
               return (
                 <Marker
                   key={`marker-${place.id}`}
@@ -626,6 +651,7 @@ export default function MapSample() {
                   <CustomMarker
                     reviewCount={reviewCount}
                     colorOverride={markerColor}
+                    isReviewed={isReviewed}
                   />
                 </Marker>
               );

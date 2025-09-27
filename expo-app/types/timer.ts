@@ -39,7 +39,7 @@ export type TimerEvent =
 export class TimerError extends Error {
   constructor(
     message: string,
-    public code: "STORAGE_ERROR" | "SESSION_ERROR" | "INVALID_STATE"
+    public code: "STORAGE_ERROR" | "SESSION_ERROR" | "INVALID_STATE",
   ) {
     super(message);
     this.name = "TimerError";

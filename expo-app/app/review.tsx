@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView, Linking } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  Linking,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
@@ -14,7 +22,7 @@ export default function Review() {
 
   // Googleレビュー投稿ページに遷移する
   const handleGoogleReview = () => {
-    const placeId = "ChIJ1_DZbAD1QDURze897ZGTrdU"
+    const placeId = "ChIJ1_DZbAD1QDURze897ZGTrdU";
     const url = `https://search.google.com/local/writereview?placeid=${placeId}`;
     Linking.openURL(url);
     setReviewed(true); // 遷移したらレビュー済みとみなす
@@ -55,7 +63,14 @@ export default function Review() {
         </View>
 
         {/* 説明文 */}
-        <Text style={{...typography.body, color: colors.text.secondary, textAlign: "center", marginBottom: 24}}>
+        <Text
+          style={{
+            ...typography.body,
+            color: colors.text.secondary,
+            textAlign: "center",
+            marginBottom: 24,
+          }}
+        >
           Googleのレビュー投稿ページに遷移します。投稿後「次へ」ボタンが有効になります。
         </Text>
 
@@ -65,7 +80,10 @@ export default function Review() {
         )}
         {/* Googleレビュー投稿ボタン */}
         <TouchableOpacity
-          style={[styles.googleReviewButton, reviewed && styles.submitButtonDisabled]}
+          style={[
+            styles.googleReviewButton,
+            reviewed && styles.submitButtonDisabled,
+          ]}
           onPress={reviewed ? undefined : handleGoogleReview}
           disabled={reviewed}
         >
@@ -76,7 +94,10 @@ export default function Review() {
 
         {/* 次へボタン（レビュー前は灰色・非活性、レビュー後は有効） */}
         <TouchableOpacity
-          style={[styles.submitButton, !reviewed && styles.submitButtonDisabled]}
+          style={[
+            styles.submitButton,
+            !reviewed && styles.submitButtonDisabled,
+          ]}
           onPress={handleSubmitReview}
           disabled={!reviewed}
         >

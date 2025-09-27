@@ -12,7 +12,7 @@ import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
 import { getCurrentStore } from "../data/mockStores";
 import { useTimer, TIMER_STORAGE_KEYS } from "../hooks/useTimer";
-import { SafeAreaView } from "react-native-safe-area-context"; 
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Timer() {
   const router = useRouter();
@@ -36,10 +36,10 @@ export default function Timer() {
     useCallback(() => {
       const checkAndResetIfNeeded = async () => {
         const storedSessionId = await AsyncStorage.getItem(
-          TIMER_STORAGE_KEYS.SESSION
+          TIMER_STORAGE_KEYS.SESSION,
         );
         const storedStartTime = await AsyncStorage.getItem(
-          TIMER_STORAGE_KEYS.START_TIME
+          TIMER_STORAGE_KEYS.START_TIME,
         );
 
         // 既存のセッションがある場合
@@ -64,7 +64,7 @@ export default function Timer() {
               if (!isRunning) {
                 startTimer(
                   new Date(storedStartTime).getTime(),
-                  storedSessionId
+                  storedSessionId,
                 );
               }
             }
@@ -88,14 +88,14 @@ export default function Timer() {
       calculateElapsedTime,
       startTimer,
       resetTimer,
-    ])
+    ]),
   );
 
   // AppStateのリスナー設定
   useEffect(() => {
     const subscription = AppState.addEventListener(
       "change",
-      handleAppStateChange
+      handleAppStateChange,
     );
 
     return () => {
@@ -114,47 +114,49 @@ export default function Timer() {
 
   return (
     <SafeAreaView style={styles.container}>
-    <View style={styles.container}>
-      {/* ヘッダー */}
-      <View style={styles.header}>
-        <Text style={styles.headerText}>滞在チェック...</Text>
-      </View>
-
-      <View style={styles.timerContainer}>
-        {/* タイマー表示 */}
-        <Text style={styles.timerText}>{timerText}</Text>
-
-        {/* タイマー実行中の表示 */}
-        {isRunning && !isTimeUp && (
-          <Text style={styles.runningText}>⏱️ タイマー実行中...</Text>
-        )}
-
-        {/* タイムアップ表示 */}
-        {isTimeUp && <Text style={styles.timeUpText}>⏰ タイムアップ！</Text>}
-      </View>
-
-      {/* --- 店舗情報 --- */}
-      <View style={styles.storeInfoContainer}>
-        <View style={styles.storeIcon}>
-          <Text style={styles.storeIconText}>🏪</Text>
+      <View style={styles.container}>
+        {/* ヘッダー */}
+        <View style={styles.header}>
+          <Text style={styles.headerText}>滞在チェック...</Text>
         </View>
-        <Text style={styles.storeName}>{store.name}</Text>
-      </View>
 
-      {/* --- 退店ボタン --- */}
-      <View style={styles.bottomContainer}>
-        <TouchableOpacity
-          style={[
-            styles.exitButton,
-            !isTimeUp && styles.exitButtonDisabled, // 10分未満は無効なスタイルを適用
-          ]}
-          onPress={handleExitStore}
-          disabled={!isTimeUp} // 10分経過後にのみ有効化
-        >
-          <Text style={styles.exitButtonText}>お店を出る (レビュー書く!)</Text>
-        </TouchableOpacity>
+        <View style={styles.timerContainer}>
+          {/* タイマー表示 */}
+          <Text style={styles.timerText}>{timerText}</Text>
+
+          {/* タイマー実行中の表示 */}
+          {isRunning && !isTimeUp && (
+            <Text style={styles.runningText}>⏱️ タイマー実行中...</Text>
+          )}
+
+          {/* タイムアップ表示 */}
+          {isTimeUp && <Text style={styles.timeUpText}>⏰ タイムアップ！</Text>}
+        </View>
+
+        {/* --- 店舗情報 --- */}
+        <View style={styles.storeInfoContainer}>
+          <View style={styles.storeIcon}>
+            <Text style={styles.storeIconText}>🏪</Text>
+          </View>
+          <Text style={styles.storeName}>{store.name}</Text>
+        </View>
+
+        {/* --- 退店ボタン --- */}
+        <View style={styles.bottomContainer}>
+          <TouchableOpacity
+            style={[
+              styles.exitButton,
+              !isTimeUp && styles.exitButtonDisabled, // 10分未満は無効なスタイルを適用
+            ]}
+            onPress={handleExitStore}
+            disabled={!isTimeUp} // 10分経過後にのみ有効化
+          >
+            <Text style={styles.exitButtonText}>
+              お店を出る (レビュー書く!)
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
     </SafeAreaView>
   );
 }

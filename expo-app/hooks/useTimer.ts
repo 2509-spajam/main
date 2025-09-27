@@ -18,7 +18,7 @@ export interface UseTimerReturn {
   // アクション
   startTimer: (
     initialStartTime?: number | null,
-    sessionId?: string | null
+    sessionId?: string | null,
   ) => Promise<void>;
   resetTimer: () => Promise<void>;
 
@@ -90,14 +90,14 @@ export const useTimer = (): UseTimerReturn => {
   const startTimer = useCallback(
     async (
       initialStartTime: number | null = null,
-      sessionId: string | null = null
+      sessionId: string | null = null,
     ) => {
       const startTime = initialStartTime ?? Date.now();
       const activeSessionId = sessionId ?? (await startNewSession());
 
       await AsyncStorage.setItem(
         STORAGE_KEY_START_TIME,
-        new Date(startTime).toISOString()
+        new Date(startTime).toISOString(),
       );
 
       setIsRunning(true);
@@ -125,7 +125,7 @@ export const useTimer = (): UseTimerReturn => {
         }
       }, 1000); // 1秒ごとに更新
     },
-    [calculateElapsedTime, startNewSession]
+    [calculateElapsedTime, startNewSession],
   );
 
   // アプリの状態が変更されたときのハンドラー
@@ -145,10 +145,10 @@ export const useTimer = (): UseTimerReturn => {
         if (newRemainingTime > 0) {
           // タイマーがまだ残っている場合は再開
           const storedStartTime = await AsyncStorage.getItem(
-            STORAGE_KEY_START_TIME
+            STORAGE_KEY_START_TIME,
           );
           const storedSessionId = await AsyncStorage.getItem(
-            STORAGE_KEY_TIMER_SESSION
+            STORAGE_KEY_TIMER_SESSION,
           );
           if (storedStartTime && storedSessionId === currentSessionId) {
             // アプリがアクティブな状態に戻ったときに、タイマーを再開させる
@@ -175,7 +175,7 @@ export const useTimer = (): UseTimerReturn => {
       }
       appState.current = nextAppState;
     },
-    [isRunning, calculateElapsedTime, startTimer, currentSessionId]
+    [isRunning, calculateElapsedTime, startTimer, currentSessionId],
   );
 
   return {

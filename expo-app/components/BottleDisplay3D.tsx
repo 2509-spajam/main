@@ -23,15 +23,19 @@ const PHYSICS_CONFIG = {
   
   // スタッキング用新パラメータ
   stackingThreshold: 0.8,    // 積み重ね判定閾値（半径比）
-  restingVelocity: 1,    // 静止判定速度
+  restingVelocity: 0.0001,   // 静止判定速度（大幅に小さく）
   positionCorrection: 0.8,   // 位置補正強度（Matter.js準拠）
   constraintIterations: 2,   // 制約反復回数（安定性向上）
   positionIterations: 3,     // 位置補正反復回数
   
-  // 摩擦・減速パラメータ
-  airResistance: 0.999,      // 空気抵抗（常時適用される減速）
-  contactFriction: 0.95,     // 接触摩擦（積み重ね時の強い摩擦）
-  horizontalRestingVelocity: 0.0005,  // 横方向静止判定速度
+  // 摩擦・減速パラメータ（より強力）
+  airResistance: 0.98,       // 空気抵抗（より強い減速）
+  contactFriction: 0.9,      // 接触摩擦（積み重ね時の強い摩擦）
+  horizontalRestingVelocity: 0.0001,  // 横方向静止判定速度
+  
+  // 積極的静止パラメータ
+  forceStopThreshold: 0.001, // 強制停止閾値（この速度以下で完全停止）
+  verticalDamping: 0.7,      // 垂直方向減衰（上方向調整を抑制）
   
   // 微振動防止パラメータ
   minBounceVelocity: 0.005,  // 最小バウンス速度（これ以下のバウンスを無視）
@@ -262,24 +266,26 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
           compeito.velocity.z -= 2 * dot * nz * PHYSICS_CONFIG.restitution;
         }
         
-        // 改善された底面衝突処理（微振動防止版）
+        // 底面衝突処理（完全静止優先版）
         const groundLevel = BOTTLE_BOTTOM + compeito.radius;
         if (compeito.position.y <= groundLevel) {
           // 底面に正確に配置
           compeito.position.y = groundLevel;
           
-          // 微小バウンス防止：速度が小さすぎる場合はバウンスせずに停止
+          // 強制停止判定：少しでも遅ければ完全停止
           if (compeito.velocity.y < 0) {
-            if (Math.abs(compeito.velocity.y) < PHYSICS_CONFIG.minBounceVelocity) {
-              // 微小なバウンスは無視して完全停止
+            if (Math.abs(compeito.velocity.y) < PHYSICS_CONFIG.forceStopThreshold) {
               compeito.velocity.y = 0;
             } else {
-              // 通常のバウンスを適用（減衰係数で強めに減速）
-              compeito.velocity.y = -compeito.velocity.y * PHYSICS_CONFIG.restitution * PHYSICS_CONFIG.dampingFactor;
+              // バウンスは最小限に抑制
+              compeito.velocity.y = -compeito.velocity.y * PHYSICS_CONFIG.restitution * PHYSICS_CONFIG.verticalDamping;
             }
+          } else if (compeito.velocity.y > 0) {
+            // 上方向の速度も大幅に減衰
+            compeito.velocity.y *= PHYSICS_CONFIG.verticalDamping;
           }
           
-          // 静止判定（さらに微小な振動を停止）
+          // より積極的な静止判定
           if (Math.abs(compeito.velocity.y) < PHYSICS_CONFIG.restingVelocity) {
             compeito.velocity.y = 0;
           }
@@ -426,30 +432,34 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
           // 重力適用
           compeito.velocity.y += PHYSICS_CONFIG.gravity;
           
-          // 空気抵抗適用（常時減速・横方向の滑りを防ぐ）
+          // 空気抵抗適用（より強力な減速）
           compeito.velocity.x *= PHYSICS_CONFIG.airResistance;
           compeito.velocity.z *= PHYSICS_CONFIG.airResistance;
+          compeito.velocity.y *= 0.99; // 垂直方向にも軽い減衰を適用
           
-          // 微小動き検出・完全停止システム（微振動防止）
+          // 積極的な静止判定（個別軸チェック）
+          if (Math.abs(compeito.velocity.x) < PHYSICS_CONFIG.horizontalRestingVelocity) {
+            compeito.velocity.x = 0;
+          }
+          if (Math.abs(compeito.velocity.z) < PHYSICS_CONFIG.horizontalRestingVelocity) {
+            compeito.velocity.z = 0;
+          }
+          if (Math.abs(compeito.velocity.y) < PHYSICS_CONFIG.restingVelocity) {
+            compeito.velocity.y = 0;
+          }
+          
+          // 全体速度による強制停止判定
           const totalVelocity = Math.sqrt(
             compeito.velocity.x * compeito.velocity.x + 
             compeito.velocity.y * compeito.velocity.y + 
             compeito.velocity.z * compeito.velocity.z
           );
           
-          if (totalVelocity < PHYSICS_CONFIG.microMovementThreshold) {
-            // 全ての微小動きを完全停止
+          if (totalVelocity < PHYSICS_CONFIG.forceStopThreshold) {
+            // 強制完全停止
             compeito.velocity.x = 0;
             compeito.velocity.y = 0;
             compeito.velocity.z = 0;
-          } else {
-            // 横方向の静止判定（微小な横移動を停止）
-            if (Math.abs(compeito.velocity.x) < PHYSICS_CONFIG.horizontalRestingVelocity) {
-              compeito.velocity.x = 0;
-            }
-            if (Math.abs(compeito.velocity.z) < PHYSICS_CONFIG.horizontalRestingVelocity) {
-              compeito.velocity.z = 0;
-            }
           }
           
           // 位置更新

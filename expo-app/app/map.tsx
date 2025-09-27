@@ -252,17 +252,12 @@ export default function MapSample() {
     getCurrentLocation();
   }, [fetchPlaces]); // fetchPlacesを依存配列に追加
 
-  const handleEnterStore = () => {
-    // routerのパスは元のコードに従ってそのまま残しています
-    router.push("/timer" as any);
-  };
-
   // ★追加: モーダル内のお店の入るボタンのハンドラー
   const handleModalEnterStore = () => {
     if (selectedPlace) {
       // ここに選択されたお店ID (selectedPlace.id) を使った処理を追加できます
       setSelectedPlace(null); // モーダルを閉じる
-      router.push("/timer" as any); // メイン画面の「お店に入る」ボタンと同じアクション
+      router.push(`/${selectedPlace?.id}/timer`); // メイン画面の「お店に入る」ボタンと同じアクション
     }
   };
 

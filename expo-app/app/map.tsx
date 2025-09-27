@@ -328,6 +328,14 @@ export default function MapSample() {
         {/* ヘッダー */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>レビュー50件以下マップ</Text>
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => router.push("/profile" as any)}
+          >
+            <View style={styles.profileIcon}>
+              <Text style={styles.profileIconText}>👤</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         {errorMsg ? (
@@ -394,11 +402,32 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     paddingHorizontal: 20,
     backgroundColor: colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     ...typography.heading,
     color: colors.text.white,
     textAlign: "center",
+    flex: 1,
+  },
+  profileButton: {
+    position: "absolute",
+    right: 20,
+    top: 60,
+  },
+  profileIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  profileIconText: {
+    fontSize: 20,
+    color: colors.text.white,
   },
   mapContainer: {
     width: "100%",

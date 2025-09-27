@@ -19,12 +19,15 @@ import Constants from "expo-constants";
 import { fetch } from "expo/fetch";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
+import CustomMarker from "../components/CustomMarker";
+import PulseCircle from "../components/PulseCircle";
 
 // ★★★ ここにあなたのGoogle Maps APIキーを挿入してください ★★★
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAP_API_KEY;
 const SEARCH_RADIUS = 5000; // 検索半径 (メートル)
 const SEARCH_RADII = [2000, 5000, 10000]; // 段階的検索用の半径リスト
 const MAX_REVIEW_COUNT = 50; // ★レビュー数の上限 (50件以下をフィルタリング)★
+const ENTER_RADIUS_METER = 5000;
 
 // 新しいPlaces API (New)用の設定
 const NEW_API_BASE_URL = "https://places.googleapis.com/v1/places:searchNearby";
@@ -118,8 +121,6 @@ export default function MapSample() {
     latitude: number;
     longitude: number;
   } | null>(null);
-  // 🌟 ボタンの有効/無効を判定する半径 (50m) 🌟
-  const ENTER_RADIUS_METER = 5000;
 
   // Places API (New)用の写真URL生成関数
   const getPhotoUrl = (photoName: string) => {
@@ -395,6 +396,33 @@ export default function MapSample() {
     }
   };
 
+  // 星の表示を生成する関数
+  const renderStars = (rating: string) => {
+    const numRating = parseFloat(rating) || 0;
+    const fullStars = Math.floor(numRating);
+    const hasHalfStar = numRating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+    let stars = "";
+
+    // 満点の星（黄色い星）
+    for (let i = 0; i < fullStars; i++) {
+      stars += "★";
+    }
+
+    // 半星（0.5以上の場合）
+    if (hasHalfStar) {
+      stars += "★"; // 視覚的に分かりやすくするため満点星を使用
+    }
+
+    // 空の星（グレーの星）
+    for (let i = 0; i < emptyStars; i++) {
+      stars += "☆";
+    }
+
+    return stars;
+  };
+
   // ★更新: 詳細情報表示用モーダルコンポーネント
   const renderPlaceModal = () => {
     if (!selectedPlace) return null;
@@ -423,7 +451,6 @@ export default function MapSample() {
 
     return (
       <Modal
-        // ... (Modalのプロパティはそのまま) ...
         animationType="slide"
         transparent={true}
         visible={!!selectedPlace}
@@ -431,55 +458,83 @@ export default function MapSample() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            {/* 閉じるボタン (Xアイコン) を右上に配置 */}
+            {/* ハンドルバー */}
+            <View style={styles.modalHandle} />
+
+            {/* 閉じるボタン */}
             <TouchableOpacity
-              style={styles.closeXButton}
+              style={styles.closeButton}
               onPress={() => setSelectedPlace(null)}
             >
-              <Text style={styles.closeXButtonText}>×</Text>
+              <Text style={styles.closeButtonText}>×</Text>
             </TouchableOpacity>
 
-            {/* タイトルと写真 */}
-            <Text style={styles.modalTitle}>{selectedPlace.title}</Text>
+            {/* 店舗画像とタイトル */}
+            <View style={styles.storeImageContainer}>
+              {photoUrl ? (
+                <Image
+                  source={{ uri: photoUrl }}
+                  style={styles.modalImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.imagePlaceholder}>
+                  <Text style={styles.noImageText}>写真はありません</Text>
+                </View>
+              )}
+              <View style={styles.imageOverlay}>
+                <Text style={styles.modalTitle}>{selectedPlace.title}</Text>
+                <Text style={styles.modalSubtitle}>未開拓店舗</Text>
+              </View>
+            </View>
 
-            {/* 写真の表示は省略 */}
-            {photoUrl ? (
-              <Image
-                source={{ uri: photoUrl }}
-                style={styles.modalImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <Text style={{ color: colors.text.secondary }}>
-                  写真はありません
+            {/* 評価と距離情報 */}
+            <View style={styles.infoRow}>
+              <View style={styles.ratingContainer}>
+                <View style={styles.ratingRow}>
+                  <Text style={styles.ratingStars}>
+                    {renderStars(
+                      selectedPlace.description.match(/評価: ([\d.]+)/)?.[1] ||
+                        "0"
+                    )}
+                  </Text>
+                  <Text style={styles.ratingText}>
+                    {selectedPlace.description.match(/評価: ([\d.]+)/)?.[1] ||
+                      "なし"}
+                  </Text>
+                </View>
+                <Text style={styles.reviewCountText}>
+                  レビュー
+                  {selectedPlace.description.match(
+                    /レビュー数: (\d+)件/
+                  )?.[1] || "0"}
+                  件
                 </Text>
               </View>
-            )}
+              <View style={styles.distanceContainer}>
+                <Text style={styles.walkIcon}>🚶</Text>
+                <Text style={styles.distanceText}>{distanceMessage}</Text>
+              </View>
+            </View>
 
-            {/* 説明文 (レビュー数) */}
-            <Text style={styles.modalDescription}>
-              {selectedPlace.description}
-            </Text>
-
-            {/* 🌟 距離の表示 🌟 */}
-            <Text style={styles.distanceText}>{distanceMessage}</Text>
-
-            {/* お店に入るボタン (下部に大きく配置) */}
+            {/* 入店ボタン */}
             <TouchableOpacity
               style={[
-                styles.enterStoreButton,
-                isEnterButtonDisabled && styles.disabledButton, // 無効時のスタイルを適用
+                styles.premiumButton,
+                isEnterButtonDisabled && styles.disabledButton,
               ]}
               onPress={handleModalEnterStore}
-              disabled={isEnterButtonDisabled} // 50m以上離れている場合は無効
+              disabled={isEnterButtonDisabled}
             >
-              <Text style={styles.enterButtonText}>
-                {isEnterButtonDisabled
-                  ? `入店不可 (${ENTER_RADIUS_METER}m以内)`
-                  : "お店に入る"}
+              <Text style={styles.premiumButtonText}>
+                {isEnterButtonDisabled ? "入店不可" : "入店"}
               </Text>
             </TouchableOpacity>
+            {isEnterButtonDisabled && (
+              <Text style={styles.enterDisabledMessage}>
+                入店するには{ENTER_RADIUS_METER}m以内に移動してください
+              </Text>
+            )}
           </View>
         </View>
       </Modal>
@@ -488,11 +543,13 @@ export default function MapSample() {
 
   // ... (return内のコンポーネントは変更なし) ...
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.container}>
-        {/* ヘッダー */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>レビュー50件以下マップ</Text>
+    <View style={styles.container}>
+      {/* ヘッダー */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>
+            レビュー{MAX_REVIEW_COUNT}件未満の店舗を探索中
+          </Text>
           <TouchableOpacity
             style={styles.profileButton}
             onPress={() => router.push("/profile" as any)}
@@ -502,12 +559,14 @@ export default function MapSample() {
             </View>
           </TouchableOpacity>
         </View>
+      </View>
 
-        {errorMsg ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{errorMsg}</Text>
-          </View>
-        ) : (
+      {errorMsg ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{errorMsg}</Text>
+        </View>
+      ) : (
+        <View style={styles.mapWrapper}>
           <MapView
             style={styles.mapContainer}
             region={initRegion || undefined}
@@ -517,124 +576,192 @@ export default function MapSample() {
             initialRegion={initRegion || undefined}
           >
             {/* 取得した飲食店マーカーの描画 */}
-            {places.map((place) => (
-              <Marker
-                key={place.id}
-                coordinate={{
-                  latitude: place.latitude,
-                  longitude: place.longitude,
-                }}
-                title={place.title}
-                description={place.description}
-                pinColor="blue"
-                onPress={() => handleMarkerPress(place)}
-              />
-            ))}
+            {places.map((place) => {
+              // レビュー数を取得（description文字列から抽出）
+              const reviewMatch =
+                place.description.match(/レビュー数: (\d+)件/);
+              const reviewCount = reviewMatch
+                ? parseInt(reviewMatch[1], 10)
+                : 0;
+
+              return (
+                <Marker
+                  key={`marker-${place.id}`}
+                  coordinate={{
+                    latitude: place.latitude,
+                    longitude: place.longitude,
+                  }}
+                  onPress={() => handleMarkerPress(place)}
+                >
+                  <CustomMarker reviewCount={reviewCount} />
+                </Marker>
+              );
+            })}
           </MapView>
-        )}
 
-        {/* ローディングインジケーター */}
-        {isLoading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator
-              size="large"
-              color={colors.primary}
-              style={{ marginBottom: 10 }}
-            />
-            <Text style={styles.loadingText}>
-              場所を検索・フィルタリング中です...
+          {/* パルスアニメーション（現在地の周辺範囲表示） - 軽減版 */}
+          {location && (
+            <View style={styles.pulseContainer}>
+              <PulseCircle size={200} duration={4000} />
+            </View>
+          )}
+
+          {/* 周辺統計情報のフローティングカード */}
+          <View style={styles.statsCard}>
+            <Text style={styles.statsText}>
+              周辺の未開拓店舗:{" "}
+              <Text style={styles.statsNumber}>{places.length}</Text>件
             </Text>
           </View>
-        )}
+        </View>
+      )}
 
-        {/* {!isLoading && !errorMsg && places.length === 0 && initRegion && (
-          <View style={styles.loadingOverlay}>
-            <Text style={styles.loadingText}>
-              レビュー50件以下の飲食店は見つかりませんでした。
-            </Text>
-          </View>
-        )} */}
+      {/* ローディングインジケーター */}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator
+            size="large"
+            color={colors.primary}
+            style={{ marginBottom: 10 }}
+          />
+          <Text style={styles.loadingText}>
+            場所を検索・フィルタリング中です...
+          </Text>
+        </View>
+      )}
 
-        {/* ★追加: 詳細モーダルを表示★ */}
-        {renderPlaceModal()}
-      </View>
-    </SafeAreaView>
+      {!isLoading && !errorMsg && places.length === 0 && initRegion && (
+        <View style={styles.loadingOverlay}>
+          <Text style={styles.loadingText}>
+            レビュー50件以下の飲食店は見つかりませんでした。
+          </Text>
+        </View>
+      )}
+
+      {/* ★追加: 詳細モーダルを表示★ */}
+      {renderPlaceModal()}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // ... (既存のスタイルは省略) ...
-
-  // 🌟 距離表示用テキストのスタイルを追加 🌟
-  distanceText: {
-    ...typography.body,
-    textAlign: "center",
-    color: colors.text.secondary,
-    marginBottom: 10,
-  },
-  // 🌟 無効時のボタンのスタイルを追加 🌟
-  disabledButton: {
-    backgroundColor: colors.button.secondary, // 無効時の色
-    opacity: 0.8,
-  },
-  enterStoreButton: {
-    backgroundColor: colors.button.primary,
-    paddingVertical: 16,
-    borderRadius: 25,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  enterButtonText: {
-    ...typography.button,
-    color: colors.text.white,
-  },
-  closeButtonText: {
-    ...typography.body,
-    color: colors.text.white,
-  },
-  // ... (他のスタイルは変更なし) ...
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
+
+  // ヘッダー関連
   header: {
-    paddingTop: 60,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    backgroundColor: colors.primary,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    zIndex: 20,
+  },
+  headerContent: {
+    backgroundColor: "rgba(74, 144, 226, 0.95)", // より不透明に
+    borderRadius: 16,
+    padding: 12,
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   headerTitle: {
-    ...typography.heading,
+    ...typography.body,
+    fontWeight: "bold",
     color: colors.text.white,
-    textAlign: "center",
+    textShadowColor: "rgba(255, 255, 255, 0.5)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
     flex: 1,
   },
+  headerCount: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: colors.text.white,
+  },
   profileButton: {
-    position: "absolute",
-    right: 20,
-    top: 60,
+    marginLeft: 12,
   },
   profileIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: colors.explorer.primary,
+    shadowColor: colors.explorer.glow,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 15,
+    elevation: 8,
   },
   profileIconText: {
     fontSize: 20,
     color: colors.text.white,
   },
-  mapContainer: {
-    width: "100%",
-    height: "100%",
+
+  // マップ関連
+  mapWrapper: {
     flex: 1,
-    backgroundColor: colors.map.water,
+    position: "relative",
   },
+  mapContainer: {
+    flex: 1,
+    zIndex: 0, // ベースレイヤー
+  },
+  pulseContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    pointerEvents: "none", // タッチイベントを透過
+    zIndex: 1, // マップより上だが、他のUIより下に
+  },
+
+  // 統計カード
+  statsCard: {
+    position: "absolute",
+    bottom: 80,
+    alignSelf: "center",
+    width: 300,
+    backgroundColor: "rgba(255, 255, 255, 0.95)", // より不透明に
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    justifyContent: "center", // 上下中央揃え
+    minHeight: 50, // 最小高さを設定
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 10, // ヘッダーより下だが、マップより上
+  },
+  statsText: {
+    ...typography.body,
+    fontWeight: "bold",
+    color: colors.explorer.textLightPrimary,
+  },
+  statsNumber: {
+    color: colors.explorer.primary,
+    fontSize: 18,
+  },
+
+  // エラー・ローディング
   errorContainer: {
     flex: 1,
     justifyContent: "center",
@@ -659,77 +786,176 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 20,
   },
-  // ★Modal関連のスタイル更新
+
+  // モーダル関連
   modalOverlay: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
   },
   modalContent: {
-    backgroundColor: colors.background,
-    padding: 20,
-    paddingTop: 40,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    width: "100%",
+    backgroundColor: colors.explorer.surfaceLight,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 20,
     maxHeight: "75%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 30,
+    elevation: 20,
+  },
+  modalHandle: {
+    width: 48,
+    height: 6,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 3,
+    alignSelf: "center",
+    marginTop: 16,
+    marginBottom: 16,
+  },
+
+  // 店舗画像とタイトル
+  storeImageContainer: {
     position: "relative",
-  },
-  modalTitle: {
-    ...typography.heading,
-    marginBottom: 10,
-    color: colors.text.dark,
-  },
-  modalDescription: {
-    ...typography.body,
+    height: 192,
+    borderRadius: 16,
+    overflow: "hidden",
+    marginHorizontal: 16,
     marginTop: 8,
-    marginBottom: 20,
-    color: colors.text.secondary,
+    marginBottom: 16,
   },
   modalImage: {
     width: "100%",
-    height: 150,
-    borderRadius: 8,
-    marginBottom: 10,
+    height: "100%",
   },
   imagePlaceholder: {
     width: "100%",
-    height: 150,
-    borderRadius: 8,
-    backgroundColor: colors.background,
+    height: "100%",
+    backgroundColor: colors.surface,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 10,
   },
-  // ★閉じるXボタンのスタイル
-  closeXButton: {
+  noImageText: {
+    color: colors.text.secondary,
+    ...typography.body,
+  },
+  imageOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    padding: 16,
+  },
+  modalTitle: {
+    ...typography.heading,
+    fontSize: 24,
+    fontWeight: "bold",
+    color: colors.text.white,
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    ...typography.caption,
+    color: colors.text.white,
+    fontSize: 14,
+  },
+
+  // 閉じるボタン
+  closeButton: {
     position: "absolute",
     top: 10,
-    right: 10,
-    width: 30,
-    height: 30,
+    right: 16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 15,
-    zIndex: 20,
-    backgroundColor: colors.button.secondary + "33",
+    zIndex: 10,
   },
-  closeXButtonText: {
+  closeButtonText: {
     fontSize: 20,
     fontWeight: "bold",
-    color: colors.text.dark,
+    color: colors.text.secondary,
     lineHeight: 20,
   },
-  // 元のスタイル (地図画面のボタン)
-  bottomContainer: {
-    padding: 20,
-    backgroundColor: colors.background,
+
+  // 評価と距離
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start", // 上揃えに変更
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
-  enterButton: {
-    backgroundColor: colors.button.primary,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 25,
+  ratingContainer: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+  },
+  ratingRow: {
+    flexDirection: "row",
     alignItems: "center",
+    marginBottom: 4,
+  },
+  ratingStars: {
+    fontSize: 16,
+    marginRight: 8,
+    color: "#FFD700", // 黄色い星
+  },
+  ratingText: {
+    ...typography.body,
+    fontWeight: "bold",
+    color: colors.explorer.textLightPrimary,
+  },
+  reviewCountText: {
+    ...typography.caption,
+    color: colors.explorer.textLightSecondary,
+    fontSize: 12,
+  },
+  distanceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  walkIcon: {
+    fontSize: 14,
+    marginRight: 4,
+  },
+  distanceText: {
+    ...typography.caption,
+    color: colors.explorer.textLightSecondary,
+    fontWeight: "500",
+  },
+
+  // プレミアムボタン
+  premiumButton: {
+    marginHorizontal: 16,
+    backgroundColor: colors.explorer.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    shadowColor: colors.explorer.glow,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  premiumButtonText: {
+    ...typography.button,
+    color: colors.text.white,
+    fontWeight: "bold",
+  },
+  disabledButton: {
+    backgroundColor: colors.button.disabled,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  enterDisabledMessage: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    textAlign: "center",
+    marginTop: 8,
+    marginHorizontal: 16,
+    fontSize: 12,
   },
 });

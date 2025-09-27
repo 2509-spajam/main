@@ -207,29 +207,16 @@ export default function Timer() {
       <View style={styles.container}>
         {/* ヘッダー */}
         <View style={styles.header}>
-          <Text style={styles.headerText}>滞在チェック...</Text>
+          <Text style={styles.headerText}>未開の地を探索中...</Text>
           <TouchableOpacity
             style={styles.profileButton}
             onPress={() => router.push("/profile" as any)}
-          >
-            <View style={styles.profileIcon}>
-              <Text style={styles.profileIconText}>👤</Text>
-            </View>
-          </TouchableOpacity>
+          ></TouchableOpacity>
         </View>
 
         <View style={styles.timerContainer}>
           {/* タイマー表示 */}
           <Text style={styles.timerText}>{timerText}</Text>
-
-          {/* タイマー状態表示 */}
-          {isTimeUp ? (
-            <Text style={styles.timeUpText}>⏰ タイムアップ！</Text>
-          ) : isRunning ? (
-            <Text style={styles.runningText}>⏱️ タイマー実行中...</Text>
-          ) : (
-            <Text style={styles.runningText}>タイマー準備中...</Text>
-          )}
         </View>
 
         {/* --- 店舗情報 --- */}

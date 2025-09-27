@@ -23,19 +23,38 @@ import { typography } from "../styles/typography";
 // ★★★ ここにあなたのGoogle Maps APIキーを挿入してください ★★★
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAP_API_KEY;
 const SEARCH_RADIUS = 5000; // 検索半径 (メートル)
-const SEARCH_TYPES_KEYWORD = "bar,bakery,cafe,restaurant"; // 検索したい飲食店タイプ
+const SEARCH_RADII = [2000, 5000, 10000]; // 段階的検索用の半径リスト
 const MAX_REVIEW_COUNT = 50; // ★レビュー数の上限 (50件以下をフィルタリング)★
 
-// Nearby Search APIから取得する基本的な場所のデータ型
-type BasicPlace = {
-  place_id: string; // 一意キー
-  name: string;
-  geometry: {
-    location: {
-      lat: number;
-      lng: number;
-    };
+// 新しいPlaces API (New)用の設定
+const NEW_API_BASE_URL = "https://places.googleapis.com/v1/places:searchNearby";
+// 新APIで有効なタイプのみを使用
+const FOOD_TYPES = ["restaurant", "cafe", "bar", "bakery"];
+const MAX_RESULTS_PER_REQUEST = 20; // 新APIの最大値
+
+// 新しいPlaces API (New)を使用
+
+// 新しいPlaces API (New)のデータ型のみを使用
+
+// 新しいPlaces API (New)のレスポンス型
+type NewAPIPlace = {
+  id: string;
+  displayName: {
+    text: string;
+    languageCode?: string;
   };
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+  rating?: number;
+  userRatingCount?: number;
+  photos?: Array<{
+    name: string;
+    widthPx: number;
+    heightPx: number;
+  }>;
+  priceLevel?: string;
 };
 
 // マーカー表示用のデータ型
@@ -45,7 +64,7 @@ type PlaceMarker = {
   longitude: number;
   title: string;
   description: string;
-  photoReference?: string; // ★追加: 写真の参照ID
+  photoReference?: string; // 写真の参照ID
 };
 
 // ===============================================
@@ -102,127 +121,210 @@ export default function MapSample() {
   // 🌟 ボタンの有効/無効を判定する半径 (50m) 🌟
   const ENTER_RADIUS_METER = 5000;
 
-  // Photo ReferenceからGoogle Places Photo APIのURLを生成するヘルパー関数 (変更なし)
-  const getPhotoUrl = (photoRef: string) => {
-    // ... (既存のロジック) ...
-    return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${GOOGLE_MAPS_API_KEY}`;
+  // Places API (New)用の写真URL生成関数
+  const getPhotoUrl = (photoName: string) => {
+    return `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=400&key=${GOOGLE_MAPS_API_KEY}`;
   };
+
+  // 新しいPlaces API (New)を使用した検索関数
+  const fetchPlacesWithNewAPI = useCallback(
+    async (
+      latitude: number,
+      longitude: number,
+      includedTypes: string[] = FOOD_TYPES,
+      radius: number = SEARCH_RADIUS
+    ) => {
+      // デバッグ用ログ
+      console.log("リクエストパラメータ:", {
+        latitude,
+        longitude,
+        includedTypes,
+        radius: radius,
+      });
+
+      const requestBody = {
+        includedTypes,
+        maxResultCount: MAX_RESULTS_PER_REQUEST,
+        locationRestriction: {
+          circle: {
+            center: {
+              latitude,
+              longitude,
+            },
+            radius: radius,
+          },
+        },
+        // ランキングの設定を追加
+        rankPreference: "POPULARITY",
+      };
+
+      const fieldMask =
+        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.photos";
+
+      console.log("リクエストボディ:", JSON.stringify(requestBody, null, 2));
+
+      try {
+        const response = await fetch(NEW_API_BASE_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY || "",
+            "X-Goog-FieldMask": fieldMask,
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        console.log("レスポンスステータス:", response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("エラーレスポンス:", errorText);
+          throw new Error(
+            `HTTP error! status: ${response.status}, body: ${errorText}`
+          );
+        }
+
+        const data = await response.json();
+
+        if (data.places) {
+          console.log(`API応答: ${data.places.length}件の場所を取得`);
+
+          const filteredPlaces = data.places
+            .filter((place: NewAPIPlace) => {
+              const reviewCount = place.userRatingCount || 0;
+              const isWithinLimit = reviewCount <= MAX_REVIEW_COUNT;
+              console.log(
+                `${place.displayName.text}: レビュー数${reviewCount}件 - ${isWithinLimit ? "採用" : "除外"}`
+              );
+              return isWithinLimit;
+            })
+            .map((place: NewAPIPlace) => {
+              const photoReference = place.photos?.[0]?.name;
+              return {
+                id: place.id,
+                latitude: place.location.latitude,
+                longitude: place.location.longitude,
+                title: place.displayName.text,
+                description: `評価: ${place.rating?.toFixed(1) || "なし"} (レビュー数: ${place.userRatingCount || 0}件)`,
+                photoReference: photoReference,
+              };
+            });
+
+          console.log(
+            `フィルタリング後: ${filteredPlaces.length}件の場所が条件に合致`
+          );
+          return filteredPlaces;
+        } else {
+          console.log("API応答にplacesフィールドがありません");
+        }
+
+        return [];
+      } catch (error) {
+        console.error("New Places API Error:", error);
+        throw error;
+      }
+    },
+    []
+  );
 
   // マーカーがタップされたときのハンドラー (変更なし)
   const handleMarkerPress = (place: PlaceMarker) => {
     setSelectedPlace(place);
   };
 
-  // Places APIから飲食店情報を取得する関数 (変更なし)
-  const fetchPlaces = useCallback(
+  // 新しいPlaces API (New)を使用したメイン検索関数
+  const fetchAllPlaces = useCallback(
     async (latitude: number, longitude: number) => {
       setIsLoading(true);
+      let allPlaces: PlaceMarker[] = [];
 
-      const location = `${latitude},${longitude}`;
-      let basicPlaces: BasicPlace[] = []; // Nearby Searchから取得した場所IDのリスト
-      let pageToken: string | undefined = undefined;
+      // APIキーの確認
+      if (!GOOGLE_MAPS_API_KEY) {
+        console.error("Google Maps API キーが設定されていません");
+        setErrorMsg("API キーが設定されていません。設定を確認してください。");
+        return [];
+      }
 
-      // 1. Nearby Search APIで場所のIDと基本情報を最大3ページ取得する
-      let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${location}&radius=${SEARCH_RADIUS}&type=restaurant&key=${GOOGLE_MAPS_API_KEY}`;
+      try {
+        console.log("新しいPlaces API (New)で検索を開始...");
 
-      for (let i = 0; i < 3; i++) {
-        if (i > 0) {
-          if (!pageToken) break;
-          // APIの推奨により、ページトークンを使用する前に2秒の遅延
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${pageToken}&key=${GOOGLE_MAPS_API_KEY}`;
-        }
+        // 段階的検索を実行（複数の半径で検索）
+        for (const searchRadius of SEARCH_RADII) {
+          console.log(`半径${searchRadius}mで検索を実行中...`);
 
-        try {
-          const response = await fetch(url);
-          const responseText = await response.text();
-
-          let data;
           try {
-            data = JSON.parse(responseText);
-          } catch (parseError: any) {
-            console.error("JSON Parse Error:", parseError);
-            console.error("Response Text:", responseText);
-            throw new Error(`JSON Parse failed: ${parseError.message}`);
-          }
-          if (data.status === "OK") {
-            basicPlaces = [...basicPlaces, ...data.results];
-            pageToken = data.next_page_token;
-            if (!pageToken) break;
-          } else if (data.status === "ZERO_RESULTS") {
-            break;
-          } else {
-            console.error(
-              "Places API Error (Nearby):",
-              data.status,
-              data.error_message
+            // 全タイプで一括検索を試行
+            console.log("全タイプで一括検索を実行中...");
+            const allTypeResults = await fetchPlacesWithNewAPI(
+              latitude,
+              longitude,
+              FOOD_TYPES,
+              searchRadius
             );
-            if (data.status === "REQUEST_DENIED") {
-              setErrorMsg(
-                `APIキー制限エラー: ${data.error_message || data.status}. GCPコンソールでAPIキーの制限設定を確認してください。`
+            if (allTypeResults.length > 0) {
+              console.log(
+                `一括検索成功: ${allTypeResults.length}件の店舗を取得`
               );
+              allPlaces.push(...allTypeResults);
             } else {
-              setErrorMsg(
-                `検索APIエラー: ${data.status}. コンソールを確認してください。`
-              );
+              console.log("一括検索で結果0件、個別検索に切り替え...");
+
+              // 個別検索にフォールバック
+              const searchPromises = FOOD_TYPES.map(async (type) => {
+                try {
+                  console.log(`個別検索実行中: ${type} (半径${searchRadius}m)`);
+                  const typeResults = await fetchPlacesWithNewAPI(
+                    latitude,
+                    longitude,
+                    [type],
+                    searchRadius
+                  );
+                  console.log(`${type}の検索結果: ${typeResults.length}件`);
+                  return typeResults;
+                } catch (error) {
+                  console.warn(`検索エラー (${type}):`, error);
+                  return [];
+                }
+              });
+
+              const results = await Promise.all(searchPromises);
+              const flatResults = results.flat();
+              allPlaces.push(...flatResults);
+              console.log(`個別検索の合計結果: ${flatResults.length}件`);
             }
+          } catch (error) {
+            console.error(`半径${searchRadius}mの検索でエラー:`, error);
+          }
+
+          // 十分な結果が得られた場合は早期終了
+          if (allPlaces.length >= 15) {
+            console.log(
+              `十分な結果が得られました (${allPlaces.length}件)、検索を終了`
+            );
             break;
           }
-        } catch (error) {
-          console.error("Fetch Nearby Error:", error);
-          setErrorMsg("飲食店情報の検索中にエラーが発生しました。");
-          break;
         }
-      }
 
-      // 2. 取得した各場所IDを使って詳細情報を取得し、フィルタリングする
-      const filteredMarkers: PlaceMarker[] = [];
-
-      for (const place of basicPlaces) {
-        // APIのレート制限回避のため、短い遅延 (200ms) を入れる
-        await new Promise((resolve) => setTimeout(resolve, 200));
-
-        // Place Details APIのURL (photosフィールドを追加)
-        const detailUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,user_ratings_total,geometry,vicinity,photos&key=${GOOGLE_MAPS_API_KEY}`;
-
-        try {
-          const detailResponse = await fetch(detailUrl);
-          const detailData = await detailResponse.json();
-
-          if (detailData.status === "OK" && detailData.result) {
-            const result = detailData.result;
-            // user_ratings_total がない場合 (レビューがない場合) は0とする
-            const reviewCount = result.user_ratings_total || 0;
-
-            // ★レビュー数50件以下の条件でフィルタリング★
-            if (reviewCount <= MAX_REVIEW_COUNT) {
-              // 最初の写真参照を取得
-              const photoReference = result.photos?.[0]?.photo_reference;
-
-              filteredMarkers.push({
-                id: place.place_id,
-                latitude: result.geometry.location.lat,
-                longitude: result.geometry.location.lng,
-                title: result.name,
-                // レビュー数をDescriptionに含めて表示
-                description: `${result.vicinity} (レビュー数: ${reviewCount}件)`,
-                photoReference: photoReference, // 写真参照を保存
-              });
-            }
-          } else if (detailData.status !== "NOT_FOUND") {
-            console.warn(
-              `Place Details API Warning (${place.name}): ${detailData.status}`
-            );
+        // 重複除去（同じIDの場所を削除）
+        const uniquePlaces = allPlaces.reduce((acc: PlaceMarker[], place) => {
+          if (!acc.find((p) => p.id === place.id)) {
+            acc.push(place);
           }
-        } catch (error) {
-          console.error("Fetch Place Details Error:", error);
-        }
-      }
+          return acc;
+        }, []);
 
-      setIsLoading(false);
-      return filteredMarkers;
+        console.log(
+          `検索完了: ${uniquePlaces.length}件の店舗を取得（重複除去前: ${allPlaces.length}件）`
+        );
+
+        return uniquePlaces;
+      } catch (error) {
+        console.error("検索中にエラーが発生しました:", error);
+        setErrorMsg("飲食店情報の検索中にエラーが発生しました。");
+        return [];
+      }
     },
-    []
+    [fetchPlacesWithNewAPI]
   );
 
   // --- 🌟 useEffect: 現在地取得とAPIコール 🌟 ---
@@ -251,7 +353,7 @@ export default function MapSample() {
         });
 
         // 3. 現在地情報を使用して飲食店情報を取得
-        const placeMarkers = await fetchPlaces(latitude, longitude);
+        const placeMarkers = await fetchAllPlaces(latitude, longitude);
         setPlaces(placeMarkers);
       } catch (error) {
         console.error("現在地情報取得エラー：", error);
@@ -261,7 +363,7 @@ export default function MapSample() {
       }
     };
     getCurrentLocation();
-  }, [fetchPlaces]);
+  }, [fetchAllPlaces]);
 
   // ★追加: モーダル内のお店の入るボタンのハンドラー
   const handleModalEnterStore = () => {
@@ -297,6 +399,7 @@ export default function MapSample() {
   const renderPlaceModal = () => {
     if (!selectedPlace) return null;
 
+    // 写真URLの生成
     const photoUrl = selectedPlace.photoReference
       ? getPhotoUrl(selectedPlace.photoReference)
       : null;

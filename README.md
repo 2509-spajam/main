@@ -1,3 +1,6 @@
 # app
 react native expo
-東
+
+# member 
+- toyama
+- higashi

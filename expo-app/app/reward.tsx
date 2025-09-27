@@ -7,10 +7,12 @@ import {
   Animated,
 } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import GLBCompeitoSingle from '../components/GLBCompeitoSingle';
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
-import GLBCompeitoSingle from '../components/GLBCompeitoSingle';
+import GLBCompeitoJar from "../components/GLBCompeitoJar";
 
 export default function Reward() {
   const router = useRouter();
@@ -55,14 +57,8 @@ export default function Reward() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* ヘッダー */}
-      <View style={styles.header}>
-        <Text style={styles.headerText}>
-          レビューを書いたら「コンペイトウ」ゲット！
-        </Text>
-      </View>
-
+    <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
       {/* コンペイトウ表示 */}
       <View style={styles.rewardContainer}>
         <Animated.View style={{ opacity: fadeAnimation }}>
@@ -80,13 +76,14 @@ export default function Reward() {
         </Animated.View>
       </View>
 
-      {/* 戻るボタン */}
-      <View style={styles.bottomContainer}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBackToMap}>
-          <Text style={styles.backButtonText}>もどる</Text>
-        </TouchableOpacity>
+        {/* 戻るボタン */}
+        <View style={styles.bottomContainer}>
+          <TouchableOpacity style={styles.backButton} onPress={handleBackToMap}>
+            <Text style={styles.backButtonText}>もどる</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -99,12 +96,38 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 16,
     paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerText: {
     ...typography.body,
     color: colors.text.primary,
     textAlign: "center",
     lineHeight: 20,
+    flex: 1,
+  },
+  profileButton: {
+    position: "absolute",
+    right: 20,
+    top: 60,
+  },
+  profileIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  profileIconText: {
+    fontSize: 18,
+    color: colors.text.primary,
   },
   rewardContainer: {
     flex: 1,

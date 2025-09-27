@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import { View, Platform, StyleSheet, Text } from 'react-native';
 import { GLView } from 'expo-gl';
 import { Renderer } from 'expo-three';
@@ -47,8 +47,6 @@ export default function GLBCompeitoSingle({
   const rendererRef = useRef<Renderer | null>(null);
   const compeitoRef = useRef<THREE.Group | null>(null);
   const animationRef = useRef<number | null>(null);
-  
-  const [isGLBLoaded, setIsGLBLoaded] = useState(false);
 
   // GLBモデルを読み込む関数
   const loadGLBModel = useCallback(async (): Promise<THREE.Group | null> => {
@@ -69,7 +67,6 @@ export default function GLBCompeitoSingle({
           asset.localUri!,
           (gltf: any) => {
             console.log('✅ GLB model loaded for single compeito');
-            setIsGLBLoaded(true);
             resolve(gltf.scene);
           },
           (progress: any) => {

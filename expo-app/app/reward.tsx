@@ -3,35 +3,26 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
+import CompeitoAnimation from "../components/CompeitoAnimation";
 
 export default function Reward() {
   const router = useRouter();
-  const scaleAnimation = useRef(new Animated.Value(0)).current;
-  const rotateAnimation = useRef(new Animated.Value(0)).current;
+  const fadeAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // コンペイトウのアニメーション
-    Animated.parallel([
-      Animated.spring(scaleAnimation, {
-        toValue: 1,
-        useNativeDriver: true,
-      }),
-      Animated.timing(rotateAnimation, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      })
-    ]).start();
-  }, [scaleAnimation, rotateAnimation]);
+    console.log('🏆 Reward screen loaded');
+    
+    // フェードインアニメーション
+    Animated.timing(fadeAnimation, {
+      toValue: 1,
+      duration: 1000,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnimation]);
 
   const handleBackToMap = () => {
     router.replace("/map" as any);
   };
-
-  const rotateInterpolate = rotateAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
 
   return (
     <View style={styles.container}>
@@ -42,27 +33,20 @@ export default function Reward() {
 
       {/* コンペイトウ表示 */}
       <View style={styles.rewardContainer}>
-        <Text style={styles.congratsText}>コンペイトウ
-GET！</Text>
-        
-        <Animated.View 
-          style={[
-            styles.compeitoContainer,
-            {
-              transform: [
-                { scale: scaleAnimation },
-                { rotate: rotateInterpolate }
-              ]
-            }
-          ]}
-        >
-          <View style={styles.compeito}>
-            <Text style={styles.compeitoText}>🍬</Text>
-          </View>
+        <Animated.View style={{ opacity: fadeAnimation }}>
+          <Text style={styles.congratsText}>コンペイトウ{"\n"}GET！</Text>
         </Animated.View>
+        
+        {/* 3D/2Dコンペイトウアニメーション */}
+        {/* testMode: 'gl' | 'cube' | 'compeito' | 'fallback' でデバッグ可能 */}
+        <CompeitoAnimation 
+          style={styles.compeitoContainer} 
+          testMode="gl" 
+        />
 
-        <Text style={styles.getMessage}>あなたのレビューが
-お店の発見につながりました！</Text>
+        <Animated.View style={{ opacity: fadeAnimation }}>
+          <Text style={styles.getMessage}>あなたのレビューが{"\n"}お店の発見につながりました！</Text>
+        </Animated.View>
       </View>
 
       {/* 戻るボタン */}
@@ -105,25 +89,8 @@ const styles = StyleSheet.create({
   },
   compeitoContainer: {
     marginBottom: 40,
-  },
-  compeito: {
-    width: 120,
-    height: 120,
-    backgroundColor: colors.reward.gold,
-    borderRadius: 60,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  compeitoText: {
-    fontSize: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   getMessage: {
     ...typography.body,

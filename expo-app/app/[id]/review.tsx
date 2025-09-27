@@ -9,8 +9,8 @@ import {
   Linking,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { colors } from "../styles/colors";
-import { typography } from "../styles/typography";
+import { colors } from "../../styles/colors";
+import { typography } from "../../styles/typography";
 
 export default function Review() {
   const router = useRouter();

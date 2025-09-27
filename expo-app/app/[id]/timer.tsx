@@ -16,7 +16,7 @@ import { typography } from "../../styles/typography";
 import { useTimer, TIMER_STORAGE_KEYS } from "../../hooks/useTimer";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
-import { fetch } from "expo/fetch"; // ★追加: expo/fetchを使用してAndroidのZERO_RESULTS問題を解決
+import { fetch } from "expo/fetch";
 
 // ⚠️ 環境変数として設定してください
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAP_API_KEY;

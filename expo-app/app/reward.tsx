@@ -10,11 +10,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
-import CompeitoAnimation from "../components/CompeitoAnimation";
+import GLBCompeitoJar from "../components/GLBCompeitoJar";
+import CompeitoAnimation from "@/components/CompeitoAnimation";
 
 export default function Reward() {
   const router = useRouter();
   const fadeAnimation = useRef(new Animated.Value(0)).current;
+  const compeitoCount = 5; // 現在のこんぺいとう数
 
   useEffect(() => {
     console.log("🏆 Reward screen loaded");
@@ -39,14 +41,24 @@ export default function Reward() {
           <Text style={styles.headerText}>
             レビューを書いたら「コンペイトウ」ゲット！
           </Text>
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => router.push("/profile" as any)}
-          >
-            <View style={styles.profileIcon}>
-              <Text style={styles.profileIconText}>👤</Text>
-            </View>
-          </TouchableOpacity>
+        </View>
+
+        {/* コンペイトウ表示 */}
+        <View style={styles.rewardContainer}>
+          <Animated.View style={{ opacity: fadeAnimation }}>
+            <Text style={styles.congratsText}>コンペイトウ{"\n"}GET！</Text>
+          </Animated.View>
+          {/* 3Dこんぺいとうビン表示 */}
+          <GLBCompeitoJar
+            count={compeitoCount}
+            interactive={false}
+            showCount={true}
+          />{" "}
+          <Animated.View style={{ opacity: fadeAnimation }}>
+            <Text style={styles.getMessage}>
+              あなたのレビューが{"\n"}お店の発見につながりました！
+            </Text>
+          </Animated.View>
         </View>
 
         {/* コンペイトウ表示 */}

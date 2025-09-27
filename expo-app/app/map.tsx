@@ -257,7 +257,7 @@ export default function MapSample() {
     if (selectedPlace) {
       // ここに選択されたお店ID (selectedPlace.id) を使った処理を追加できます
       setSelectedPlace(null); // モーダルを閉じる
-      router.push(`/${selectedPlace?.id}/timer`); // メイン画面の「お店に入る」ボタンと同じアクション
+      router.push(`/${selectedPlace?.id}/timer` as any); // メイン画面の「お店に入る」ボタンと同じアクション
     }
   };
 

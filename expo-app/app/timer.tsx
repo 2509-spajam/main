@@ -10,13 +10,11 @@ import { useRouter, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
-import { getCurrentStore } from "../data/mockStores";
 import { useTimer, TIMER_STORAGE_KEYS } from "../hooks/useTimer";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Timer() {
   const router = useRouter();
-  const store = getCurrentStore();
 
   // useTimerフックを使用
   const {
@@ -138,7 +136,7 @@ export default function Timer() {
           <View style={styles.storeIcon}>
             <Text style={styles.storeIconText}>🏪</Text>
           </View>
-          <Text style={styles.storeName}>{store.name}</Text>
+          <Text style={styles.storeName}>ほげふが店</Text>
         </View>
 
         {/* --- 退店ボタン --- */}

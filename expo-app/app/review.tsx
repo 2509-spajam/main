@@ -11,11 +11,9 @@ import {
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
-import { getCurrentStore } from "../data/mockStores";
 
 export default function Review() {
   const router = useRouter();
-  const store = getCurrentStore();
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [reviewed, setReviewed] = useState(false); // Googleレビュー済み状態
@@ -59,7 +57,7 @@ export default function Review() {
           <View style={styles.storeIcon}>
             <Text style={styles.storeIconText}>🏪</Text>
           </View>
-          <Text style={styles.storeName}>{store?.name ?? "店舗名"}</Text>
+          <Text style={styles.storeName}>ほげふが店</Text>
         </View>
 
         {/* 説明文 */}

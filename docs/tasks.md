@@ -1,13 +1,203 @@
-# 未評価レビュワーズ モック作成計画
+# GLBモデルを使用したこんぺいとうシステム実装計画
 
-## プロジェクト概要
-- アプリ名: 未評価レビュワーズ
-- 技術スタック: Expo (React Native) + TypeScript
-- 目標: 画面遷移とUI/UXのモック（機能は抜き）
+## 目的
+準備された `conpeito.glb` 3Dモデルを使用して、よりリアルなこんぺいとう表示システムを実装
 
-## 画面遷移図から読み取った必要な画面
+## 現在の環境分析
+- ✅ **GLBファイル**: `expo-app/assets/objs/conpeito.glb` 配置済み
+- ✅ **Metro設定**: `.glb` アセット対応済み
+- ✅ **Three.js環境**: expo-three 8.0.0, three.js 0.166.1
+- ✅ **既存コンポーネント**: CompeitoJar.tsx（基本版）
 
-### 1. スタート画面（ランディング画面）
+## 実装計画
+
+### Phase 1: GLBローダー統合
+1. **GLTFLoaderの追加**
+   ```bash
+   # 追加ライブラリ（既存環境で対応可能か確認）
+   # Three.js GLTFLoader はコア機能なので追加不要の可能性
+   ```
+
+2. **GLBCompeitoLoaderコンポーネント作成**
+   - GLBファイル読み込み
+   - モデルキャッシュ機能
+   - エラーハンドリング
+
+### Phase 2: GLBこんぺいとうビンコンポーネント
+1. **GLBCompeitoJar.tsx 作成**
+   - 既存のCompeitoJar.tsxをベースに改良
+   - OctahedronGeometry → GLBモデルに変更
+   - パフォーマンス最適化
+
+2. **主な機能**
+   ```typescript
+   interface GLBCompeitoJarProps {
+     count: number;
+     glbPath: string;              // GLBファイルパス
+     size?: 'small' | 'medium' | 'large';
+     animated?: boolean;
+     interactive?: boolean;         // タッチ追加機能
+     style?: any;
+     showCount?: boolean;
+     onCompeitoAdd?: (newCount: number) => void;
+   }
+   ```
+
+### Phase 3: GLBモデル最適化
+1. **インスタンス化**
+   - 単一GLBモデルを複数インスタンス表示
+   - InstancedMeshでパフォーマンス向上
+
+2. **LOD (Level of Detail)**
+   - 距離に応じてモデル詳細度調整
+   - フレームレート安定化
+
+### Phase 4: アニメーション強化
+1. **GLBアニメーション**
+   - モデル内蔵アニメーション対応
+   - 個別こんぺいとうの微細な動き
+
+2. **物理演算統合** (オプション)
+   - より自然な落下・跳ね返り
+   - GLBモデルの境界ボックス使用
+
+## 技術的実装詳細
+
+### GLBローダー実装
+```typescript
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+
+class GLBModelCache {
+  private static cache = new Map<string, THREE.Group>();
+  
+  static async loadModel(path: string): Promise<THREE.Group> {
+    if (this.cache.has(path)) {
+      return this.cache.get(path)!.clone();
+    }
+    
+    const loader = new GLTFLoader();
+    const gltf = await loader.loadAsync(path);
+    this.cache.set(path, gltf.scene);
+    return gltf.scene.clone();
+  }
+}
+```
+
+### GLBインスタンス化システム
+```typescript
+// 効率的なGLBインスタンス表示
+const createGLBInstancedMesh = (model: THREE.Group, count: number) => {
+  // GLBメッシュを解析してInstancedMeshに変換
+  const geometry = extractGeometryFromGLB(model);
+  const material = extractMaterialFromGLB(model);
+  
+  return new THREE.InstancedMesh(geometry, material, count);
+};
+```
+
+### アセット管理
+```
+expo-app/assets/
+├── objs/
+│   └── conpeito.glb          # メインこんぺいとうモデル
+└── 3d/                       # 新規ディレクトリ
+    ├── textures/             # テクスチャファイル
+    └── materials/            # マテリアル設定
+```
+
+## パフォーマンス考慮事項
+
+### メモリ使用量
+- **GLBファイルサイズ**: 目標 < 1MB
+- **インスタンス数**: 最大100個まで対応
+- **テクスチャ解像度**: 512x512px推奨
+
+### 読み込み速度
+- **キャッシュ機能**: 初回読み込み後はメモリキャッシュ
+- **プリロード**: アプリ起動時にバックグラウンド読み込み
+- **フォールバック**: 読み込み失敗時はOctahedronで代替
+
+### プラットフォーム対応
+- **iOS/Android**: フル3D GLBモデル表示
+- **Web**: パフォーマンスに応じて簡略化
+- **低性能デバイス**: 自動的にLOD調整
+
+## エラーハンドリング戦略
+
+### GLB読み込み失敗
+```typescript
+const fallbackGeometry = {
+  onError: () => new THREE.OctahedronGeometry(0.1, 0),
+  onLoad: (glb) => extractGeometryFromGLB(glb)
+};
+```
+
+### パフォーマンス低下
+- フレームレート監視
+- 自動品質調整
+- こんぺいとう数動的制限
+
+## 段階的実装スケジュール
+
+### 実装順序
+1. **GLTFLoader統合** (30分)
+   - 基本的なGLB読み込み機能
+   - エラーハンドリング
+
+2. **GLBCompeitoJar作成** (60分)
+   - 既存コンポーネント改良
+   - GLBモデル統合
+
+3. **インスタンス化最適化** (45分)
+   - パフォーマンス向上
+   - メモリ効率化
+
+4. **UI統合** (15分)
+   - reward.tsxでの使用
+   - review.tsx予告表示
+
+### テスト項目
+- [ ] GLB読み込み成功
+- [ ] 複数インスタンス表示
+- [ ] タッチインタラクション
+- [ ] パフォーマンス測定
+- [ ] エラー処理確認
+
+## 期待される効果
+
+### ビジュアル向上
+- 🎨 **リアルなこんぺいとう**: 実際の形状・質感
+- ✨ **高品質レンダリング**: PBRマテリアル対応
+- 🌟 **ブランド一貫性**: デザインシステム統合
+
+### ユーザー体験
+- 😊 **没入感向上**: 3Dモデルの魅力
+- 🎮 **インタラクション強化**: タッチの楽しさ
+- 📱 **アプリ差別化**: 独特なビジュアル
+
+### 技術的メリット  
+- 🚀 **拡張性**: 他の3Dアセット追加容易
+- 🔧 **メンテナンス性**: モデル更新が独立
+- 📊 **パフォーマンス**: 最適化されたレンダリング
+
+## リスク・制約事項
+
+### 技術的リスク
+- **GLBファイルサイズ**: バンドルサイズ増加
+- **読み込み時間**: 初回表示遅延の可能性
+- **メモリ使用量**: デバイス依存のパフォーマンス差
+
+### 対策
+- GLBファイル最適化（Blender/glTF-Pipeline使用）
+- プログレッシブローディング
+- デバイス性能自動検出・調整
+
+---
+
+**次のアクション**: GLTFLoader統合とGLBCompeitoJar.tsxコンポーネント作成から開始
+
+*計画作成日: 2025-09-27*  
+*対象: conpeito.glb モデル統合*
 - **ファイルパス**: `expo-app/app/index.tsx` (既存を更新)
 - アプリタイトル「未評価レビュワーズ」
 - アプリロゴ/アイコン表示

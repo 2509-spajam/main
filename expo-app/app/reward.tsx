@@ -9,12 +9,12 @@ import {
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
-import CompeitoJar from "../components/CompeitoJar";
+import GLBCompeitoJar from '../components/GLBCompeitoJar';
 
 export default function Reward() {
   const router = useRouter();
   const fadeAnimation = useRef(new Animated.Value(0)).current;
-  const totalCompeitos = 5;
+  const compeitoCount = 5; // 現在のこんぺいとう数
 
   useEffect(() => {
     console.log('🏆 Reward screen loaded');
@@ -47,15 +47,11 @@ export default function Reward() {
         </Animated.View>
         
         {/* 3Dこんぺいとうビン表示 */}
-        <CompeitoJar 
-          count={totalCompeitos} 
-          size="medium" 
-          animated={true} 
-          style={styles.compeitoContainer}
+        <GLBCompeitoJar
+          count={compeitoCount}
+          interactive={false}
           showCount={true}
-        />
-
-        <Animated.View style={{ opacity: fadeAnimation }}>
+        />        <Animated.View style={{ opacity: fadeAnimation }}>
           <Text style={styles.getMessage}>あなたのレビューが{"\n"}お店の発見につながりました！</Text>
         </Animated.View>
       </View>

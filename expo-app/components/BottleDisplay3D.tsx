@@ -11,7 +11,7 @@ import { typography } from '../styles/typography';
 // グローバルのTHREEオブジェクトを設定
 (global as any).THREE = (global as any).THREE || THREE;
 
-// 物理設定定数
+// 物理設定定数（スイカゲーム式スタッキング対応）
 const PHYSICS_CONFIG = {
   gravity: -0.0008,
   restitution: 0.6,
@@ -19,7 +19,14 @@ const PHYSICS_CONFIG = {
   bottleRadius: 0.7,
   bottleBottom: -0.8,
   compeitoRadius: 0.05,
-  compeitoCount: 20
+  compeitoCount: 20,
+  
+  // スタッキング用新パラメータ
+  stackingThreshold: 0.8,    // 積み重ね判定閾値（半径比）
+  restingVelocity: 0.001,    // 静止判定速度
+  positionCorrection: 0.8,   // 位置補正強度（Matter.js準拠）
+  constraintIterations: 2,   // 制約反復回数（安定性向上）
+  positionIterations: 3      // 位置補正反復回数
 };
 
 interface CompeitoPhysics {
@@ -245,71 +252,130 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
           compeito.velocity.z -= 2 * dot * nz * PHYSICS_CONFIG.restitution;
         }
         
-        // 底面衝突
-        if (compeito.position.y - compeito.radius < BOTTLE_BOTTOM) {
-          compeito.position.y = BOTTLE_BOTTOM + compeito.radius;
-          compeito.velocity.y = -compeito.velocity.y * PHYSICS_CONFIG.restitution;
+        // 改善された底面衝突処理（スイカゲーム式）
+        const groundLevel = BOTTLE_BOTTOM + compeito.radius;
+        if (compeito.position.y <= groundLevel) {
+          // 底面に正確に配置
+          compeito.position.y = groundLevel;
+          
+          // 下向きの速度のみ反転（上向きは保持）
+          if (compeito.velocity.y < 0) {
+            compeito.velocity.y = -compeito.velocity.y * PHYSICS_CONFIG.restitution;
+          }
+          
+          // 静止判定（微小な振動を停止）
+          if (Math.abs(compeito.velocity.y) < PHYSICS_CONFIG.restingVelocity) {
+            compeito.velocity.y = 0;
+          }
+          
+          // 水平摩擦適用
           compeito.velocity.x *= PHYSICS_CONFIG.friction;
           compeito.velocity.z *= PHYSICS_CONFIG.friction;
         }
       };
       
-      // コンペイトウ間衝突処理
-      const handleCompeitoCollisions = () => {
-        for (let i = 0; i < compeitos.length - 1; i++) {
-          for (let j = i + 1; j < compeitos.length; j++) {
-            const a = compeitos[i];
-            const b = compeitos[j];
+      // 垂直積み重ね処理（スイカゲーム式）
+      const handleVerticalStacking = (a: CompeitoPhysics, b: CompeitoPhysics): boolean => {
+        const dx = a.position.x - b.position.x;
+        const dz = a.position.z - b.position.z;
+        const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
+        const radiusSum = a.radius + b.radius;
+        
+        // 水平距離が近い場合のみ垂直積み重ね処理
+        if (horizontalDistance < radiusSum * PHYSICS_CONFIG.stackingThreshold) {
+          const dy = a.position.y - b.position.y;
+          const verticalDistance = Math.abs(dy);
+          
+          // 垂直方向の重なり判定
+          if (verticalDistance < radiusSum) {
+            // 上下の判定
+            const upper = a.position.y > b.position.y ? a : b;
+            const lower = a.position.y > b.position.y ? b : a;
             
-            const dx = a.position.x - b.position.x;
-            const dy = a.position.y - b.position.y;
-            const dz = a.position.z - b.position.z;
-            const distanceSquared = dx*dx + dy*dy + dz*dz;
+            // 上のコンペイトウを適切な位置に配置（支え合う）
+            const targetY = lower.position.y + lower.radius + upper.radius;
+            const currentY = upper.position.y;
             
-            const radiusSum = a.radius + b.radius;
-            if (distanceSquared < radiusSum * radiusSum) {
-              // 衝突発生
-              const distance = Math.sqrt(distanceSquared);
-              const overlap = radiusSum - distance;
+            if (currentY < targetY) {
+              upper.position.y = targetY;
               
-              if (distance > 0) {
-                // 正規化された方向ベクトル
-                const nx = dx / distance;
-                const ny = dy / distance;
-                const nz = dz / distance;
+              // 上のコンペイトウの下向き速度を停止（静止）
+              if (upper.velocity.y < 0) {
+                upper.velocity.y = 0;
+              }
+            }
+            
+            return true; // 垂直スタッキング処理済み
+          }
+        }
+        
+        return false; // 水平衝突として処理
+      };
+      
+      // コンペイトウ間衝突処理（統合版・スイカゲーム式）
+      const handleCompeitoCollisions = () => {
+        // 複数回の反復処理で安定性を向上（Matter.js方式）
+        for (let iteration = 0; iteration < PHYSICS_CONFIG.constraintIterations; iteration++) {
+          for (let i = 0; i < compeitos.length - 1; i++) {
+            for (let j = i + 1; j < compeitos.length; j++) {
+              const a = compeitos[i];
+              const b = compeitos[j];
+              
+              const dx = a.position.x - b.position.x;
+              const dy = a.position.y - b.position.y;
+              const dz = a.position.z - b.position.z;
+              const distanceSquared = dx*dx + dy*dy + dz*dz;
+              
+              const radiusSum = a.radius + b.radius;
+              if (distanceSquared < radiusSum * radiusSum) {
+                const distance = Math.sqrt(distanceSquared);
                 
-                // 位置補正（重なり解除）
-                const correction = overlap * 0.5;
-                a.position.x += nx * correction;
-                a.position.y += ny * correction;
-                a.position.z += nz * correction;
-                
-                b.position.x -= nx * correction;
-                b.position.y -= ny * correction;
-                b.position.z -= nz * correction;
-                
-                // 相対速度の法線成分
-                const relativeVelX = a.velocity.x - b.velocity.x;
-                const relativeVelY = a.velocity.y - b.velocity.y;
-                const relativeVelZ = a.velocity.z - b.velocity.z;
-                
-                const velocityAlongNormal = relativeVelX * nx + relativeVelY * ny + relativeVelZ * nz;
-                
-                // 分離中なら処理不要
-                if (velocityAlongNormal > 0) continue;
-                
-                // 衝撃量計算
-                const impulse = -(1 + PHYSICS_CONFIG.restitution) * velocityAlongNormal;
-                const impulseScalar = impulse / 2; // 質量が同じと仮定
-                
-                // 速度更新
-                a.velocity.x += impulseScalar * nx;
-                a.velocity.y += impulseScalar * ny;
-                a.velocity.z += impulseScalar * nz;
-                
-                b.velocity.x -= impulseScalar * nx;
-                b.velocity.y -= impulseScalar * ny;
-                b.velocity.z -= impulseScalar * nz;
+                if (distance > 0) {
+                  // 垂直積み重ね処理を試行
+                  if (handleVerticalStacking(a, b)) {
+                    continue; // 垂直スタッキング処理済み
+                  }
+                  
+                  // 水平衝突処理
+                  const overlap = radiusSum - distance;
+                  if (overlap > 0) {
+                    // 正規化された方向ベクトル
+                    const nx = dx / distance;
+                    const ny = dy / distance;
+                    const nz = dz / distance;
+                    
+                    // 位置補正（重なり解除・Matter.js準拠）
+                    const correction = overlap * PHYSICS_CONFIG.positionCorrection * 0.5;
+                    a.position.x += nx * correction;
+                    a.position.y += ny * correction;
+                    a.position.z += nz * correction;
+                    
+                    b.position.x -= nx * correction;
+                    
+                    // 相対速度の法線成分
+                    const relativeVelX = a.velocity.x - b.velocity.x;
+                    const relativeVelY = a.velocity.y - b.velocity.y;
+                    const relativeVelZ = a.velocity.z - b.velocity.z;
+                    
+                    const velocityAlongNormal = relativeVelX * nx + relativeVelY * ny + relativeVelZ * nz;
+                    
+                    // 分離中なら処理不要
+                    if (velocityAlongNormal > 0) continue;
+                    
+                    // 衝撃量計算
+                    const impulse = -(1 + PHYSICS_CONFIG.restitution) * velocityAlongNormal;
+                    const impulseScalar = impulse / 2; // 質量が同じと仮定
+                    
+                    // 速度更新
+                    a.velocity.x += impulseScalar * nx;
+                    a.velocity.y += impulseScalar * ny;
+                    a.velocity.z += impulseScalar * nz;
+                    
+                    b.velocity.x -= impulseScalar * nx;
+                    b.velocity.y -= impulseScalar * ny;
+                    b.velocity.z -= impulseScalar * nz;
+                  }
+                }
               }
             }
           }
@@ -318,7 +384,7 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
       
       let isAnimating = true;
       
-      // メイン物理シミュレーションループ
+      // メイン物理シミュレーションループ（スイカゲーム式）
       const animate = () => {
         if (!isAnimating) return;
 
@@ -334,13 +400,22 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
           
           // ビン境界制約
           constrainToBottle(compeito);
-          
-          // 3Dモデル同期
-          compeito.model.position.copy(compeito.position);
         });
         
-        // コンペイトウ同士衝突処理
+        // コンペイトウ同士衝突処理（スイカゲーム式）
         handleCompeitoCollisions();
+        
+        // 位置補正の追加反復（安定性向上）
+        for (let correction = 0; correction < PHYSICS_CONFIG.positionIterations; correction++) {
+          compeitos.forEach(compeito => {
+            constrainToBottle(compeito);
+          });
+        }
+        
+        // 3Dモデル同期（最後に実行）
+        compeitos.forEach(compeito => {
+          compeito.model.position.copy(compeito.position);
+        });
         
         // レンダリング
         try {

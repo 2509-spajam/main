@@ -3,9 +3,9 @@ import { AppState, AppStateStatus } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // 定数
-const TOTAL_TIME_SECONDS = 10 * 60; // 10分 = 600秒
+const TOTAL_TIME_SECONDS = 5;
 const STORAGE_KEY_START_TIME = "@timer_start_time";
-const STORAGE_KEY_TIMER_SESSION = "@timer_session_id"; // セッション管理用
+const STORAGE_KEY_TIMER_SESSION = "@timer_session_id";
 
 // useTimerの戻り値の型定義
 export interface UseTimerReturn {

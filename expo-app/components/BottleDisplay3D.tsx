@@ -19,7 +19,7 @@ const PHYSICS_CONFIG = {
   bottleRadius: 0.7,
   bottleBottom: -0.8,
   compeitoRadius: 0.05,
-  compeitoCount: 4
+  compeitoCount: 20
 };
 
 interface CompeitoPhysics {
@@ -181,17 +181,22 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
         const compeitoScale = bottleScale * 0.1;
         compeitoInstance.scale.setScalar(compeitoScale);
         
-        // ランダム初期位置（ビン上部）
-        const angle = (i / PHYSICS_CONFIG.compeitoCount) * Math.PI * 2;
-        const radius = Math.random() * 0.3;
+        // より密な初期配置（多層配置）
+        const layer = Math.floor(i / 5); // 5個ずつのレイヤー
+        const indexInLayer = i % 5;
+        const angle = (indexInLayer / 5) * Math.PI * 2 + layer * 0.5; // レイヤーごとに角度をずらす
+        const radius = Math.random() * 0.4 + 0.1; // 0.1-0.5の範囲
         const initialX = Math.cos(angle) * radius;
         const initialZ = Math.sin(angle) * radius;
-        const initialY = 0.8 + Math.random() * 0.3; // 少し高めから落とす
+        const initialY = 1.2 + layer * 0.2 + Math.random() * 0.1; // レイヤー別の高さ
         
         compeitoInstance.position.set(initialX, initialY, initialZ);
         
-        // パステルカラーを適用（個体差）
-        const colors = [0xFFB3BA, 0xFFDFBA, 0xBAE1FF, 0xBAFFBA, 0xFFBAFF];
+        // パステルカラーを適用（より多くの色バリエーション）
+        const colors = [
+          0xFFB3BA, 0xFFDFBA, 0xBAE1FF, 0xBAFFBA, 0xFFBAFF,
+          0xFFF2BA, 0xBAFFC9, 0xFFBAE1, 0xE1BAFF, 0xBAFFF2
+        ];
         compeitoInstance.traverse((child: any) => {
           if (child.isMesh && child.material) {
             child.material = child.material.clone();
@@ -201,10 +206,14 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
         
         scene.add(compeitoInstance);
         
-        // 物理データ作成
+        // 物理データ作成（少し小さめの初期速度）
         compeitos.push({
           position: { x: initialX, y: initialY, z: initialZ },
-          velocity: { x: Math.random() * 0.002 - 0.001, y: 0, z: Math.random() * 0.002 - 0.001 },
+          velocity: { 
+            x: (Math.random() - 0.5) * 0.001, 
+            y: 0, 
+            z: (Math.random() - 0.5) * 0.001 
+          },
           radius: PHYSICS_CONFIG.compeitoRadius,
           model: compeitoInstance
         });

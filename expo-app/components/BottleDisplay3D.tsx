@@ -20,12 +20,34 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const animationIdRef = useRef<number | null>(null);
 
+  // クリーンアップ
+  React.useEffect(() => {
+    return () => {
+      if (animationIdRef.current) {
+        cancelAnimationFrame(animationIdRef.current);
+      }
+      if (rendererRef.current) {
+        rendererRef.current.dispose();
+      }
+    };
+  }, []);
+
   const onContextCreate = async (gl: any) => {
     try {
-      // レンダラーの設定
-      const renderer = new Renderer({ gl });
+      // レンダラーの設定（アンチエイリアシングを無効化）
+      const renderer = new Renderer({ 
+        gl,
+        antialias: false,
+        alpha: true,
+        preserveDrawingBuffer: true
+      });
       renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
-      renderer.setClearColor(0xffffff, 0);
+      renderer.setClearColor(0x000000, 0); // 透明な背景
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      
+      // シャドウマッピングを無効化（パフォーマンス向上）
+      renderer.shadowMap.enabled = false;
+      
       rendererRef.current = renderer;
 
       // シーンの作成
@@ -42,26 +64,37 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
       camera.position.set(0, 0, 5);
       cameraRef.current = camera;
 
-      // ライティング
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      // ライティング（expo-gl互換性を重視）
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
       scene.add(ambientLight);
 
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      directionalLight.position.set(10, 10, 5);
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+      directionalLight.position.set(5, 5, 5);
+      directionalLight.castShadow = false; // シャドウを無効化
       scene.add(directionalLight);
+
+      // 追加のライトで全体を明るく
+      const light2 = new THREE.DirectionalLight(0xffffff, 0.3);
+      light2.position.set(-5, -5, -5);
+      scene.add(light2);
 
       // GLBモデルのロード
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const bottleAsset = require('../assets/objs/bottle.glb');
-      const asset = Asset.fromModule(bottleAsset);
-      await asset.downloadAsync();
+      const [asset] = await Asset.loadAsync(bottleAsset);
+      
+      if (!asset.localUri) {
+        throw new Error('Failed to get local URI from asset');
+      }
       
       const loader = new GLTFLoader();
       const gltf = await new Promise<any>((resolve, reject) => {
         loader.load(
-          asset.localUri || asset.uri,
+          asset.localUri!,
           resolve,
-          undefined,
+          (progress: any) => {
+            console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+          },
           reject
         );
       });
@@ -86,11 +119,18 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
       // アニメーションループ
       const animate = () => {
         if (rendererRef.current && sceneRef.current && cameraRef.current) {
-          // ゆっくりと回転
-          model.rotation.y += 0.005;
-          
-          rendererRef.current.render(sceneRef.current, cameraRef.current);
-          gl.endFrameEXP();
+          try {
+            // ゆっくりと回転
+            model.rotation.y += 0.005;
+            
+            // レンダリング（エラーハンドリング付き）
+            rendererRef.current.render(sceneRef.current, cameraRef.current);
+            gl.endFrameEXP();
+            
+          } catch (renderError) {
+            console.warn('Render warning:', renderError);
+            // レンダリングエラーが発生しても継続
+          }
           
           animationIdRef.current = requestAnimationFrame(animate);
         }

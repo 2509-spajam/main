@@ -27,7 +27,7 @@ export default function GLBCompeitoJar({
   count = 0,
   jarRadius = 1.2,
   jarHeight = 2.0,
-  compeitoSize = 0.03, // さらに小さく調整
+  compeitoSize = 0.01, // さらに小さく調整
   jarColor = 0x87ceeb,
   maxCompeitos = 100,
   onCompeitoAdd,

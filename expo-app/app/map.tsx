@@ -99,7 +99,7 @@ export default function MapSample() {
     longitude: number;
   } | null>(null);
   // 🌟 ボタンの有効/無効を判定する半径 (50m) 🌟
-  const ENTER_RADIUS_METER = 50;
+  const ENTER_RADIUS_METER = 5000;
 
   // Photo ReferenceからGoogle Places Photo APIのURLを生成するヘルパー関数 (変更なし)
   const getPhotoUrl = (photoRef: string) => {

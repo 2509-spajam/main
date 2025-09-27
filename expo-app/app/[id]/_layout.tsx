@@ -18,6 +18,13 @@ export default function DynamicLayout() {
           // IDに基づいてヘッダーやオプションをカスタマイズ可能
         }}
       />
+      <Stack.Screen
+        name="review"
+        options={{
+          title: `review - ${id}`,
+          // IDに基づいてヘッダーやオプションをカスタマイズ可能
+        }}
+      />
     </Stack>
   );
 }

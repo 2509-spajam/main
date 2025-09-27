@@ -63,6 +63,7 @@ const colors = {
   },
   button: {
     primary: "#FF9800",
+    secondary: "#9E9E9E", // 閉じるボタン用に新しい色を追加
   },
   map: {
     water: "#AECBFA",
@@ -110,7 +111,7 @@ export default function MapSample() {
 
   // Photo ReferenceからGoogle Places Photo APIのURLを生成するヘルパー関数
   const getPhotoUrl = (photoRef: string) => {
-    // 幅を400ピクセルに設定して写真をリクエスト
+    // 幅400ピクセルに設定
     return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${GOOGLE_MAPS_API_KEY}`;
   };
 
@@ -256,7 +257,16 @@ export default function MapSample() {
     router.push("/timer" as any);
   };
 
-  // ★追加: 詳細情報表示用モーダルコンポーネント
+  // ★追加: モーダル内のお店の入るボタンのハンドラー
+  const handleModalEnterStore = () => {
+    if (selectedPlace) {
+      // ここに選択されたお店ID (selectedPlace.id) を使った処理を追加できます
+      setSelectedPlace(null); // モーダルを閉じる
+      router.push("/timer" as any); // メイン画面の「お店に入る」ボタンと同じアクション
+    }
+  };
+
+  // ★更新: 詳細情報表示用モーダルコンポーネント
   const renderPlaceModal = () => {
     if (!selectedPlace) return null;
 
@@ -273,6 +283,15 @@ export default function MapSample() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            {/* 閉じるボタン (Xアイコン) を右上に配置 */}
+            <TouchableOpacity
+              style={styles.closeXButton}
+              onPress={() => setSelectedPlace(null)}
+            >
+              <Text style={styles.closeXButtonText}>×</Text>
+            </TouchableOpacity>
+
+            {/* タイトルと写真 */}
             <Text style={styles.modalTitle}>{selectedPlace.title}</Text>
 
             {/* 写真の表示 */}
@@ -290,15 +309,17 @@ export default function MapSample() {
               </View>
             )}
 
+            {/* 説明文 (レビュー数) */}
             <Text style={styles.modalDescription}>
               {selectedPlace.description}
             </Text>
 
+            {/* お店に入るボタン (下部に大きく配置) */}
             <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setSelectedPlace(null)}
+              style={styles.enterStoreButton}
+              onPress={handleModalEnterStore}
             >
-              <Text style={styles.closeButtonText}>閉じる</Text>
+              <Text style={styles.enterButtonText}>お店に入る</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -363,17 +384,6 @@ export default function MapSample() {
 
         {/* ★追加: 詳細モーダルを表示★ */}
         {renderPlaceModal()}
-
-        {/* 下部ボタン */}
-        <View style={styles.bottomContainer}>
-          <TouchableOpacity
-            style={styles.enterButton}
-            onPress={handleEnterStore}
-            disabled={isLoading}
-          >
-            <Text style={styles.enterButtonText}>お店に入る</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -425,7 +435,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 20,
   },
-  // ★Modal関連のスタイル追加
+  // ★Modal関連のスタイル更新
   modalOverlay: {
     flex: 1,
     justifyContent: "flex-end", // 画面の下から表示
@@ -434,10 +444,12 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: colors.modal.background,
     padding: 20,
+    paddingTop: 40, // Xボタンのためのスペースを確保
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     width: "100%",
-    maxHeight: "75%", // モーダルの最大高さを設定
+    maxHeight: "75%",
+    position: "relative", // Xボタンを絶対配置するために必要
   },
   modalTitle: {
     ...typography.heading,
@@ -465,19 +477,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
-  closeButton: {
+  // ★閉じるXボタンのスタイル
+  closeXButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 30,
+    height: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 15,
+    zIndex: 20,
+    backgroundColor: colors.button.secondary + "33", // 薄いグレー
+  },
+  closeXButtonText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: colors.text.dark,
+    lineHeight: 20,
+  },
+  // ★お店に入るボタン (モーダル内) のスタイル
+  enterStoreButton: {
     backgroundColor: colors.button.primary,
-    paddingVertical: 12,
-    borderRadius: 20,
+    paddingVertical: 16,
+    borderRadius: 25,
     alignItems: "center",
     marginTop: 10,
   },
-  closeButtonText: {
-    ...typography.button,
-    fontSize: 16,
-    color: colors.text.white,
-  },
-  // 元のスタイル
+  // 元のスタイル (地図画面のボタン)
   bottomContainer: {
     padding: 20,
     backgroundColor: colors.background,

@@ -28,7 +28,7 @@ const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAP_API_KEY;
 const SEARCH_RADIUS = 5000; // 検索半径 (メートル)
 const SEARCH_RADII = [2000, 5000, 10000]; // 段階的検索用の半径リスト
 const MAX_REVIEW_COUNT = 50; // ★レビュー数の上限 (50件以下をフィルタリング)★
-const ENTER_RADIUS_METER = 5000;
+const ENTER_RADIUS_METER = 50; // 入店可能な半径 (メートル)
 
 // 新しいPlaces API (New)用の設定
 const NEW_API_BASE_URL = "https://places.googleapis.com/v1/places:searchNearby";
@@ -36,11 +36,6 @@ const NEW_API_BASE_URL = "https://places.googleapis.com/v1/places:searchNearby";
 const FOOD_TYPES = ["restaurant", "cafe", "bar", "bakery"];
 const MAX_RESULTS_PER_REQUEST = 20; // 新APIの最大値
 
-// 新しいPlaces API (New)を使用
-
-// 新しいPlaces API (New)のデータ型のみを使用
-
-// 新しいPlaces API (New)のレスポンス型
 type NewAPIPlace = {
   id: string;
   displayName: {
@@ -117,6 +112,11 @@ export default function MapSample() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedPlace, setSelectedPlace] = useState<PlaceMarker | null>(null);
   const [isStoreReviewed, setIsStoreReviewed] = useState<boolean>(false);
+
+  // 🌟 レビュー済み店舗のIDを管理するステート 🌟
+  const [reviewedStoreIds, setReviewedStoreIds] = useState<Set<string>>(
+    new Set()
+  );
 
   // 🌟 ユーザーの現在地を保持するステートを追加 🌟
   const [location, setLocation] = useState<{
@@ -236,6 +236,11 @@ export default function MapSample() {
     // レビュー済みかどうかをチェック
     const reviewed = await ReviewedStoresManager.isStoreReviewed(place.id);
     setIsStoreReviewed(reviewed);
+
+    // 🌟 レビュー済み状態が変更されている場合は、ステートも更新 🌟
+    if (reviewed && !reviewedStoreIds.has(place.id)) {
+      setReviewedStoreIds((prev) => new Set([...prev, place.id]));
+    }
   };
 
   // 新しいPlaces API (New)を使用したメイン検索関数
@@ -361,6 +366,18 @@ export default function MapSample() {
         // 3. 現在地情報を使用して飲食店情報を取得
         const placeMarkers = await fetchAllPlaces(latitude, longitude);
         setPlaces(placeMarkers);
+
+        // 🌟 4. 各店舗のレビュー済み状態をチェック 🌟
+        const reviewedIds = new Set<string>();
+        for (const place of placeMarkers) {
+          const isReviewed = await ReviewedStoresManager.isStoreReviewed(
+            place.id
+          );
+          if (isReviewed) {
+            reviewedIds.add(place.id);
+          }
+        }
+        setReviewedStoreIds(reviewedIds);
       } catch (error) {
         console.error("現在地情報取得エラー：", error);
         setErrorMsg("現在地情報の取得中にエラーが発生しました。");
@@ -604,6 +621,24 @@ export default function MapSample() {
                 ? parseInt(reviewMatch[1], 10)
                 : 0;
 
+              // 🌟 ユーザーの現在地からの距離を計算してマーカーの色を決定 🌟
+              let markerColor: string | undefined = undefined;
+              if (location) {
+                const distance = getDistance(
+                  location.latitude,
+                  location.longitude,
+                  place.latitude,
+                  place.longitude
+                );
+                // ENTER_RADIUS_METER以内の場合、色を#F7931Eに変更
+                if (distance <= ENTER_RADIUS_METER) {
+                  markerColor = "#F7931E";
+                }
+              }
+
+              // 🌟 レビュー済み状態を取得 🌟
+              const isReviewed = reviewedStoreIds.has(place.id);
+
               return (
                 <Marker
                   key={`marker-${place.id}`}
@@ -613,7 +648,11 @@ export default function MapSample() {
                   }}
                   onPress={() => handleMarkerPress(place)}
                 >
-                  <CustomMarker reviewCount={reviewCount} />
+                  <CustomMarker
+                    reviewCount={reviewCount}
+                    colorOverride={markerColor}
+                    isReviewed={isReviewed}
+                  />
                 </Marker>
               );
             })}

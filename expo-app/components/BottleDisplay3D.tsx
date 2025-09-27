@@ -18,15 +18,20 @@ const PHYSICS_CONFIG = {
   friction: 0.8,
   bottleRadius: 0.7,
   bottleBottom: -0.8,
-  compeitoRadius: 0.05,
-  compeitoCount: 20,
+  compeitoRadius: 0.12,
+  compeitoCount: 40,
   
   // スタッキング用新パラメータ
   stackingThreshold: 0.8,    // 積み重ね判定閾値（半径比）
   restingVelocity: 0.001,    // 静止判定速度
   positionCorrection: 0.8,   // 位置補正強度（Matter.js準拠）
   constraintIterations: 2,   // 制約反復回数（安定性向上）
-  positionIterations: 3      // 位置補正反復回数
+  positionIterations: 3,     // 位置補正反復回数
+  
+  // 摩擦・減速パラメータ
+  airResistance: 0.999,      // 空気抵抗（常時適用される減速）
+  contactFriction: 0.95,     // 接触摩擦（積み重ね時の強い摩擦）
+  horizontalRestingVelocity: 0.0005  // 横方向静止判定速度
 };
 
 interface CompeitoPhysics {
@@ -185,7 +190,7 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
         const compeitoInstance = compeitoGltf.scene.clone();
         
         // サイズ調整
-        const compeitoScale = bottleScale * 0.1;
+        const compeitoScale = bottleScale * 0.2;
         compeitoInstance.scale.setScalar(compeitoScale);
         
         // より密な初期配置（多層配置）
@@ -217,9 +222,9 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
         compeitos.push({
           position: { x: initialX, y: initialY, z: initialZ },
           velocity: { 
-            x: (Math.random() - 0.5) * 0.001, 
+            x: (Math.random() - 0.5) * 0.002, 
             y: 0, 
-            z: (Math.random() - 0.5) * 0.001 
+            z: (Math.random() - 0.5) * 0.002 
           },
           radius: PHYSICS_CONFIG.compeitoRadius,
           model: compeitoInstance
@@ -302,6 +307,18 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
               // 上のコンペイトウの下向き速度を停止（静止）
               if (upper.velocity.y < 0) {
                 upper.velocity.y = 0;
+              }
+              
+              // 積み重ね時の接触摩擦を適用（横方向の滑りを防ぐ）
+              upper.velocity.x *= PHYSICS_CONFIG.contactFriction;
+              upper.velocity.z *= PHYSICS_CONFIG.contactFriction;
+              
+              // 横方向の静止判定
+              if (Math.abs(upper.velocity.x) < PHYSICS_CONFIG.horizontalRestingVelocity) {
+                upper.velocity.x = 0;
+              }
+              if (Math.abs(upper.velocity.z) < PHYSICS_CONFIG.horizontalRestingVelocity) {
+                upper.velocity.z = 0;
               }
             }
             
@@ -392,6 +409,18 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
         compeitos.forEach(compeito => {
           // 重力適用
           compeito.velocity.y += PHYSICS_CONFIG.gravity;
+          
+          // 空気抵抗適用（常時減速・横方向の滑りを防ぐ）
+          compeito.velocity.x *= PHYSICS_CONFIG.airResistance;
+          compeito.velocity.z *= PHYSICS_CONFIG.airResistance;
+          
+          // 横方向の静止判定（微小な横移動を停止）
+          if (Math.abs(compeito.velocity.x) < PHYSICS_CONFIG.horizontalRestingVelocity) {
+            compeito.velocity.x = 0;
+          }
+          if (Math.abs(compeito.velocity.z) < PHYSICS_CONFIG.horizontalRestingVelocity) {
+            compeito.velocity.z = 0;
+          }
           
           // 位置更新
           compeito.position.x += compeito.velocity.x;

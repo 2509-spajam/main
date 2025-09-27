@@ -3,3 +3,4 @@ react native expo
 
 # member 
 - toyama
+- higashi

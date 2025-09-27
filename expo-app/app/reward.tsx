@@ -1,5 +1,11 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
@@ -28,7 +34,9 @@ export default function Reward() {
     <View style={styles.container}>
       {/* ヘッダー */}
       <View style={styles.header}>
-        <Text style={styles.headerText}>レビューを書いたら「コンペイトウ」ゲット！</Text>
+        <Text style={styles.headerText}>
+          レビューを書いたら「コンペイトウ」ゲット！
+        </Text>
       </View>
 
       {/* コンペイトウ表示 */}

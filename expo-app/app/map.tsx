@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Map() {
   const router = useRouter();
@@ -12,25 +13,29 @@ export default function Map() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* ヘッダー */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>未評価レビュワーズ</Text>
-      </View>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
+        {/* ヘッダー */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>未評価レビュワーズ</Text>
+        </View>
 
-      {/* 地図表示エリア */}
-      <View style={styles.mapContainer}>
-        <Text style={styles.mapPlaceholder}>Map View
-(モック)</Text>
-      </View>
+        {/* 地図表示エリア */}
+        <View style={styles.mapContainer}>
+          <Text style={styles.mapPlaceholder}>Map View (モック)</Text>
+        </View>
 
-      {/* 下部ボタン */}
-      <View style={styles.bottomContainer}>
-        <TouchableOpacity style={styles.enterButton} onPress={handleEnterStore}>
-          <Text style={styles.enterButtonText}>お店に入る</Text>
-        </TouchableOpacity>
+        {/* 下部ボタン */}
+        <View style={styles.bottomContainer}>
+          <TouchableOpacity
+            style={styles.enterButton}
+            onPress={handleEnterStore}
+          >
+            <Text style={styles.enterButtonText}>お店に入る</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 

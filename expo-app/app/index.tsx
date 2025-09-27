@@ -16,8 +16,8 @@ export default function Index() {
       <View style={styles.content}>
         {/* アプリロゴ/アイコン */}
         <View style={styles.logoContainer}>
-          <Image 
-            source={require("../assets/images/icon.png")} 
+          <Image
+            source={require("../assets/images/icon.png")}
             style={styles.logo}
             resizeMode="contain"
           />

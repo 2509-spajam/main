@@ -9,11 +9,12 @@ import {
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
-import CompeitoAnimation from "../components/CompeitoAnimation";
+import GLBCompeitoJar from '../components/GLBCompeitoJar';
 
 export default function Reward() {
   const router = useRouter();
   const fadeAnimation = useRef(new Animated.Value(0)).current;
+  const compeitoCount = 5; // 現在のこんぺいとう数
 
   useEffect(() => {
     console.log("🏆 Reward screen loaded");
@@ -44,15 +45,14 @@ export default function Reward() {
         <Animated.View style={{ opacity: fadeAnimation }}>
           <Text style={styles.congratsText}>コンペイトウ{"\n"}GET！</Text>
         </Animated.View>
-
-        {/* 3D/2Dコンペイトウアニメーション */}
-        {/* testMode: 'gl' | 'cube' | 'compeito' | 'fallback' でデバッグ可能 */}
-        <CompeitoAnimation style={styles.compeitoContainer} testMode="cube" />
-
-        <Animated.View style={{ opacity: fadeAnimation }}>
-          <Text style={styles.getMessage}>
-            あなたのレビューが{"\n"}お店の発見につながりました！
-          </Text>
+        
+        {/* 3Dこんぺいとうビン表示 */}
+        <GLBCompeitoJar
+          count={compeitoCount}
+          interactive={false}
+          showCount={true}
+        />        <Animated.View style={{ opacity: fadeAnimation }}>
+          <Text style={styles.getMessage}>あなたのレビューが{"\n"}お店の発見につながりました！</Text>
         </Animated.View>
       </View>
 

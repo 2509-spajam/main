@@ -353,13 +353,13 @@ export default function MapSample() {
           </View>
         )}
 
-        {!isLoading && !errorMsg && places.length === 0 && initRegion && (
+        {/* {!isLoading && !errorMsg && places.length === 0 && initRegion && (
           <View style={styles.loadingOverlay}>
             <Text style={styles.loadingText}>
               レビュー50件以下の飲食店は見つかりませんでした。
             </Text>
           </View>
-        )}
+        )} */}
 
         {/* ★追加: 詳細モーダルを表示★ */}
         {renderPlaceModal()}

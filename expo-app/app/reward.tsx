@@ -16,8 +16,8 @@ export default function Reward() {
   const fadeAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    console.log('🏆 Reward screen loaded');
-    
+    console.log("🏆 Reward screen loaded");
+
     // フェードインアニメーション
     Animated.timing(fadeAnimation, {
       toValue: 1,
@@ -44,16 +44,15 @@ export default function Reward() {
         <Animated.View style={{ opacity: fadeAnimation }}>
           <Text style={styles.congratsText}>コンペイトウ{"\n"}GET！</Text>
         </Animated.View>
-        
+
         {/* 3D/2Dコンペイトウアニメーション */}
         {/* testMode: 'gl' | 'cube' | 'compeito' | 'fallback' でデバッグ可能 */}
-        <CompeitoAnimation 
-          style={styles.compeitoContainer} 
-          testMode="cube" 
-        />
+        <CompeitoAnimation style={styles.compeitoContainer} testMode="cube" />
 
         <Animated.View style={{ opacity: fadeAnimation }}>
-          <Text style={styles.getMessage}>あなたのレビューが{"\n"}お店の発見につながりました！</Text>
+          <Text style={styles.getMessage}>
+            あなたのレビューが{"\n"}お店の発見につながりました！
+          </Text>
         </Animated.View>
       </View>
 
@@ -97,8 +96,8 @@ const styles = StyleSheet.create({
   },
   compeitoContainer: {
     marginBottom: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   getMessage: {
     ...typography.body,

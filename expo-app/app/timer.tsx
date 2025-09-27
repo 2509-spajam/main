@@ -36,10 +36,10 @@ export default function Timer() {
     useCallback(() => {
       const checkAndResetIfNeeded = async () => {
         const storedSessionId = await AsyncStorage.getItem(
-          TIMER_STORAGE_KEYS.SESSION,
+          TIMER_STORAGE_KEYS.SESSION
         );
         const storedStartTime = await AsyncStorage.getItem(
-          TIMER_STORAGE_KEYS.START_TIME,
+          TIMER_STORAGE_KEYS.START_TIME
         );
 
         // 既存のセッションがある場合
@@ -64,7 +64,7 @@ export default function Timer() {
               if (!isRunning) {
                 startTimer(
                   new Date(storedStartTime).getTime(),
-                  storedSessionId,
+                  storedSessionId
                 );
               }
             }
@@ -88,14 +88,14 @@ export default function Timer() {
       calculateElapsedTime,
       startTimer,
       resetTimer,
-    ]),
+    ])
   );
 
   // AppStateのリスナー設定
   useEffect(() => {
     const subscription = AppState.addEventListener(
       "change",
-      handleAppStateChange,
+      handleAppStateChange
     );
 
     return () => {

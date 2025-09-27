@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
+import { SafeAreaView } from "react-native-safe-area-context"; 
 
 export default function Map() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function Map() {
   };
 
   return (
+    <SafeAreaView style={styles.container}>
     <View style={styles.container}>
       {/* ヘッダー */}
       <View style={styles.header}>
@@ -31,6 +33,7 @@ export default function Map() {
         </TouchableOpacity>
       </View>
     </View>
+    </SafeAreaView>
   );
 }
 

@@ -12,6 +12,7 @@ import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
 import { getCurrentStore } from "../data/mockStores";
 import { useTimer, TIMER_STORAGE_KEYS } from "../hooks/useTimer";
+import { SafeAreaView } from "react-native-safe-area-context"; 
 
 export default function Timer() {
   const router = useRouter();
@@ -112,6 +113,7 @@ export default function Timer() {
   const timerText = formatTime(remainingTime);
 
   return (
+    <SafeAreaView style={styles.container}>
     <View style={styles.container}>
       {/* ヘッダー */}
       <View style={styles.header}>
@@ -153,6 +155,7 @@ export default function Timer() {
         </TouchableOpacity>
       </View>
     </View>
+    </SafeAreaView>
   );
 }
 

@@ -1,3 +1,8 @@
 # app
 react native expo
-末吉
+
+
+# member 
+- toyama
+- higashi
+- sueyoshi

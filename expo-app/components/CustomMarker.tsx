@@ -5,11 +5,13 @@ import { colors } from "../styles/colors";
 interface CustomMarkerProps {
   reviewCount: number;
   size?: number;
+  colorOverride?: string; // 距離に基づいて色を変更するためのプロップ
 }
 
 const CustomMarker = React.memo(function CustomMarker({
   reviewCount,
   size = 36,
+  colorOverride,
 }: CustomMarkerProps) {
   // レビュー数に基づいてopacityを決定（レビューが少ないほど濃い）
   const getMarkerOpacity = (count: number): number => {
@@ -19,7 +21,7 @@ const CustomMarker = React.memo(function CustomMarker({
     return 0.4; // 上限近く（最も薄い）
   };
 
-  const markerColor = colors.explorer.primary; // 統一カラー
+  const markerColor = colorOverride || colors.explorer.primary; // colorOverrideがあれば使用、なければ統一カラー
   const markerOpacity = getMarkerOpacity(reviewCount);
 
   return (

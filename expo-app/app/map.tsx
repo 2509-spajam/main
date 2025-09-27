@@ -28,7 +28,7 @@ const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAP_API_KEY;
 const SEARCH_RADIUS = 5000; // 検索半径 (メートル)
 const SEARCH_RADII = [2000, 5000, 10000]; // 段階的検索用の半径リスト
 const MAX_REVIEW_COUNT = 50; // ★レビュー数の上限 (50件以下をフィルタリング)★
-const ENTER_RADIUS_METER = 5000;
+const ENTER_RADIUS_METER = 50; // 入店可能な半径 (メートル)
 
 // 新しいPlaces API (New)用の設定
 const NEW_API_BASE_URL = "https://places.googleapis.com/v1/places:searchNearby";
@@ -36,11 +36,6 @@ const NEW_API_BASE_URL = "https://places.googleapis.com/v1/places:searchNearby";
 const FOOD_TYPES = ["restaurant", "cafe", "bar", "bakery"];
 const MAX_RESULTS_PER_REQUEST = 20; // 新APIの最大値
 
-// 新しいPlaces API (New)を使用
-
-// 新しいPlaces API (New)のデータ型のみを使用
-
-// 新しいPlaces API (New)のレスポンス型
 type NewAPIPlace = {
   id: string;
   displayName: {
@@ -604,6 +599,21 @@ export default function MapSample() {
                 ? parseInt(reviewMatch[1], 10)
                 : 0;
 
+              // 🌟 ユーザーの現在地からの距離を計算してマーカーの色を決定 🌟
+              let markerColor: string | undefined = undefined;
+              if (location) {
+                const distance = getDistance(
+                  location.latitude,
+                  location.longitude,
+                  place.latitude,
+                  place.longitude
+                );
+                // ENTER_RADIUS_METER以内の場合、色を#F7931Eに変更
+                if (distance <= ENTER_RADIUS_METER) {
+                  markerColor = "#F7931E";
+                }
+              }
+
               return (
                 <Marker
                   key={`marker-${place.id}`}
@@ -613,7 +623,10 @@ export default function MapSample() {
                   }}
                   onPress={() => handleMarkerPress(place)}
                 >
-                  <CustomMarker reviewCount={reviewCount} />
+                  <CustomMarker
+                    reviewCount={reviewCount}
+                    colorOverride={markerColor}
+                  />
                 </Marker>
               );
             })}

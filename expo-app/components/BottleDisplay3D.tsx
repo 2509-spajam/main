@@ -84,43 +84,85 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
       light2.position.set(-5, -5, -5);
       scene.add(light2);
 
-      // GLBモデルのロード
+      // GLBモデルのロード（ボトル）
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const bottleAsset = require('../assets/objs/bottle.glb');
-      const [asset] = await Asset.loadAsync(bottleAsset);
+      const [bottleAssetLoaded] = await Asset.loadAsync(bottleAsset);
       
-      if (!asset.localUri) {
-        throw new Error('Failed to get local URI from asset');
+      if (!bottleAssetLoaded.localUri) {
+        throw new Error('Failed to get local URI from bottle asset');
       }
       
       const loader = new GLTFLoader();
-      const gltf = await new Promise<any>((resolve, reject) => {
+      
+      // ボトルモデルをロード
+      const bottleGltf = await new Promise<any>((resolve, reject) => {
         loader.load(
-          asset.localUri!,
+          bottleAssetLoaded.localUri!,
           resolve,
           (progress: any) => {
-            console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+            console.log('Bottle loading progress:', (progress.loaded / progress.total * 100) + '%');
           },
           reject
         );
       });
 
-      // モデルをシーンに追加
-      const model = gltf.scene;
+      // ボトルモデルをシーンに追加
+      const bottleModel = bottleGltf.scene;
       
-      // モデルのサイズ調整
-      const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const scale = 2 / maxDim;
-      model.scale.setScalar(scale);
+      // ボトルのサイズ調整
+      const bottleBox = new THREE.Box3().setFromObject(bottleModel);
+      const bottleSize = bottleBox.getSize(new THREE.Vector3());
+      const bottleMaxDim = Math.max(bottleSize.x, bottleSize.y, bottleSize.z);
+      const bottleScale = 2 / bottleMaxDim;
+      bottleModel.scale.setScalar(bottleScale);
 
-      // モデルを中央に配置
-      const center = box.getCenter(new THREE.Vector3());
-      model.position.sub(center.multiplyScalar(scale));
+      // ボトルを中央に配置
+      const bottleCenter = bottleBox.getCenter(new THREE.Vector3());
+      bottleModel.position.sub(bottleCenter.multiplyScalar(bottleScale));
 
-      scene.add(model);
-      setIsLoading(false);
+      scene.add(bottleModel);
+
+      // コンペイトウモデルのロード
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const compeitoAsset = require('../assets/objs/conpeito.glb');
+      const [compeitoAssetLoaded] = await Asset.loadAsync(compeitoAsset);
+      
+      if (!compeitoAssetLoaded.localUri) {
+        throw new Error('Failed to get local URI from compeito asset');
+      }
+      
+      // コンペイトウモデルをロード
+      const compeitoGltf = await new Promise<any>((resolve, reject) => {
+        loader.load(
+          compeitoAssetLoaded.localUri!,
+          resolve,
+          (progress: any) => {
+            console.log('Compeito loading progress:', (progress.loaded / progress.total * 100) + '%');
+          },
+          reject
+        );
+      });
+
+      // コンペイトウモデルをシーンに追加
+      const compeitoModel = compeitoGltf.scene.clone();
+      
+      // コンペイトウのサイズ調整（小さく）
+      const compeitoScale = bottleScale * 0.1; // ボトルの1/10サイズ
+      compeitoModel.scale.setScalar(compeitoScale);
+      
+      // コンペイトウをボトルの少し前に配置
+      compeitoModel.position.set(0, -0.3, 0.5);
+      
+      // パステルピンク色を適用
+      compeitoModel.traverse((child: any) => {
+        if (child.isMesh && child.material) {
+          child.material = child.material.clone();
+          child.material.color = new THREE.Color(0xFFB3BA); // パステルピンク
+        }
+      });
+
+      scene.add(compeitoModel);
 
       // 静的表示（アニメーションなし）でテスト
       try {

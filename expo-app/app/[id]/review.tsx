@@ -15,6 +15,7 @@ import { colors } from "../../styles/colors";
 import { typography } from "../../styles/typography";
 import Constants from "expo-constants";
 import { fetch } from "expo/fetch";
+import { ReviewedStoresManager } from "../../utils/reviewedStores";
 
 // ⚠️ 環境変数として設定してください
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAP_API_KEY;
@@ -98,7 +99,14 @@ export default function Review() {
     setReviewed(true); // 遷移したらレビュー済みとみなす
   };
 
-  const handleSubmitReview = () => {
+  const handleSubmitReview = async () => {
+    if (id && typeof id === "string") {
+      // レビュー済みとしてAsyncStorageに保存
+      const success = await ReviewedStoresManager.addReviewedStore(id);
+      if (success) {
+        console.log(`店舗ID ${id} をレビュー済みとして保存しました`);
+      }
+    }
     router.push("/reward" as any);
   };
 

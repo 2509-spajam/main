@@ -16,6 +16,7 @@ export default function RootLayout() {
         <Stack.Screen name="timer" />
         <Stack.Screen name="review" />
         <Stack.Screen name="reward" />
+        <Stack.Screen name="profile" />
       </Stack>
     </>
   );

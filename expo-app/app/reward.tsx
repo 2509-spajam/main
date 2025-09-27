@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Animated,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
@@ -31,38 +32,48 @@ export default function Reward() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* ヘッダー */}
-      <View style={styles.header}>
-        <Text style={styles.headerText}>
-          レビューを書いたら「コンペイトウ」ゲット！
-        </Text>
-      </View>
-
-      {/* コンペイトウ表示 */}
-      <View style={styles.rewardContainer}>
-        <Animated.View style={{ opacity: fadeAnimation }}>
-          <Text style={styles.congratsText}>コンペイトウ{"\n"}GET！</Text>
-        </Animated.View>
-
-        {/* 3D/2Dコンペイトウアニメーション */}
-        {/* testMode: 'gl' | 'cube' | 'compeito' | 'fallback' でデバッグ可能 */}
-        <CompeitoAnimation style={styles.compeitoContainer} testMode="cube" />
-
-        <Animated.View style={{ opacity: fadeAnimation }}>
-          <Text style={styles.getMessage}>
-            あなたのレビューが{"\n"}お店の発見につながりました！
+    <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
+        {/* ヘッダー */}
+        <View style={styles.header}>
+          <Text style={styles.headerText}>
+            レビューを書いたら「コンペイトウ」ゲット！
           </Text>
-        </Animated.View>
-      </View>
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => router.push("/profile" as any)}
+          >
+            <View style={styles.profileIcon}>
+              <Text style={styles.profileIconText}>👤</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
 
-      {/* 戻るボタン */}
-      <View style={styles.bottomContainer}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBackToMap}>
-          <Text style={styles.backButtonText}>もどる</Text>
-        </TouchableOpacity>
+        {/* コンペイトウ表示 */}
+        <View style={styles.rewardContainer}>
+          <Animated.View style={{ opacity: fadeAnimation }}>
+            <Text style={styles.congratsText}>コンペイトウ{"\n"}GET！</Text>
+          </Animated.View>
+
+          {/* 3D/2Dコンペイトウアニメーション */}
+          {/* testMode: 'gl' | 'cube' | 'compeito' | 'fallback' でデバッグ可能 */}
+          <CompeitoAnimation style={styles.compeitoContainer} testMode="cube" />
+
+          <Animated.View style={{ opacity: fadeAnimation }}>
+            <Text style={styles.getMessage}>
+              あなたのレビューが{"\n"}お店の発見につながりました！
+            </Text>
+          </Animated.View>
+        </View>
+
+        {/* 戻るボタン */}
+        <View style={styles.bottomContainer}>
+          <TouchableOpacity style={styles.backButton} onPress={handleBackToMap}>
+            <Text style={styles.backButtonText}>もどる</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -75,12 +86,38 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 16,
     paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerText: {
     ...typography.body,
     color: colors.text.primary,
     textAlign: "center",
     lineHeight: 20,
+    flex: 1,
+  },
+  profileButton: {
+    position: "absolute",
+    right: 20,
+    top: 60,
+  },
+  profileIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  profileIconText: {
+    fontSize: 18,
+    color: colors.text.primary,
   },
   rewardContainer: {
     flex: 1,

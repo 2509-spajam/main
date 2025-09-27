@@ -123,6 +123,14 @@ export default function Timer() {
         {/* ヘッダー */}
         <View style={styles.header}>
           <Text style={styles.headerText}>滞在チェック...</Text>
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => router.push("/profile" as any)}
+          >
+            <View style={styles.profileIcon}>
+              <Text style={styles.profileIconText}>👤</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.timerContainer}>
@@ -177,11 +185,37 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 16,
     paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerText: {
     ...typography.subheading,
     color: colors.text.primary,
     textAlign: "center",
+    flex: 1,
+  },
+  profileButton: {
+    position: "absolute",
+    right: 20,
+    top: 60,
+  },
+  profileIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  profileIconText: {
+    fontSize: 18,
+    color: colors.text.primary,
   },
   timerContainer: {
     flex: 1,

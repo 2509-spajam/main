@@ -1,10 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { GLView } from 'expo-gl';
 import { Renderer } from 'expo-three';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { Asset } from 'expo-asset';
+import { colors } from '../styles/colors';
+import { typography } from '../styles/typography';
 
 // グローバルのTHREEオブジェクトを設定
 (global as any).THREE = (global as any).THREE || THREE;
@@ -15,19 +17,20 @@ interface BottleDisplay3DProps {
 
 export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const rendererRef = useRef<Renderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const animationIdRef = useRef<number | null>(null);
 
   // クリーンアップ
   React.useEffect(() => {
     return () => {
-      if (animationIdRef.current) {
-        cancelAnimationFrame(animationIdRef.current);
-      }
       if (rendererRef.current) {
-        rendererRef.current.dispose();
+        try {
+          rendererRef.current.dispose();
+        } catch (e) {
+          console.warn('Renderer disposal warning:', e);
+        }
       }
     };
   }, []);
@@ -116,43 +119,42 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
       scene.add(model);
       setIsLoading(false);
 
-      // アニメーションループ
-      const animate = () => {
-        if (rendererRef.current && sceneRef.current && cameraRef.current) {
-          try {
-            // ゆっくりと回転
-            model.rotation.y += 0.005;
-            
-            // レンダリング（エラーハンドリング付き）
-            rendererRef.current.render(sceneRef.current, cameraRef.current);
-            gl.endFrameEXP();
-            
-          } catch (renderError) {
-            console.warn('Render warning:', renderError);
-            // レンダリングエラーが発生しても継続
-          }
-          
-          animationIdRef.current = requestAnimationFrame(animate);
-        }
-      };
-      
-      animate();
+      // 静的表示（アニメーションなし）でテスト
+      try {
+        // 初期レンダリングのみ
+        rendererRef.current.render(scene, camera);
+        gl.endFrameEXP();
+        console.log('✅ Static render successful');
+        setIsLoading(false);
+      } catch (renderError) {
+        console.error('❌ Static render failed:', renderError);
+        setHasError(true);
+        setIsLoading(false);
+      }
       
     } catch (error) {
       console.error('3D model loading error:', error);
+      setHasError(true);
       setIsLoading(false);
     }
   };
 
   return (
     <View style={[styles.container, style]}>
-      <GLView
-        style={styles.glView}
-        onContextCreate={onContextCreate}
-      />
-      {isLoading && (
+      {hasError ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>🍶</Text>
+          <Text style={styles.errorSubText}>3D表示準備中</Text>
+        </View>
+      ) : (
+        <GLView
+          style={styles.glView}
+          onContextCreate={onContextCreate}
+        />
+      )}
+      {isLoading && !hasError && (
         <View style={styles.loadingOverlay}>
-          {/* ローディング表示は必要に応じて追加 */}
+          <Text style={styles.loadingText}>読み込み中...</Text>
         </View>
       )}
     </View>
@@ -167,10 +169,28 @@ const styles = StyleSheet.create({
   glView: {
     flex: 1,
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+  },
+  errorText: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  errorSubText: {
+    ...typography.caption,
+    color: colors.text.secondary,
+  },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    ...typography.body,
+    color: colors.text.secondary,
   },
 });

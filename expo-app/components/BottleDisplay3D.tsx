@@ -23,7 +23,7 @@ const PHYSICS_CONFIG = {
   
   // スタッキング用新パラメータ
   stackingThreshold: 0.8,    // 積み重ね判定閾値（半径比）
-  restingVelocity: 0.001,    // 静止判定速度
+  restingVelocity: 1,    // 静止判定速度
   positionCorrection: 0.8,   // 位置補正強度（Matter.js準拠）
   constraintIterations: 2,   // 制約反復回数（安定性向上）
   positionIterations: 3,     // 位置補正反復回数
@@ -31,7 +31,12 @@ const PHYSICS_CONFIG = {
   // 摩擦・減速パラメータ
   airResistance: 0.999,      // 空気抵抗（常時適用される減速）
   contactFriction: 0.95,     // 接触摩擦（積み重ね時の強い摩擦）
-  horizontalRestingVelocity: 0.0005  // 横方向静止判定速度
+  horizontalRestingVelocity: 0.0005,  // 横方向静止判定速度
+  
+  // 微振動防止パラメータ
+  minBounceVelocity: 0.005,  // 最小バウンス速度（これ以下のバウンスを無視）
+  dampingFactor: 0.95,       // 振動減衰係数（強い減衰）
+  microMovementThreshold: 0.0001  // 微小動き闾値
 };
 
 interface CompeitoPhysics {
@@ -257,18 +262,24 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
           compeito.velocity.z -= 2 * dot * nz * PHYSICS_CONFIG.restitution;
         }
         
-        // 改善された底面衝突処理（スイカゲーム式）
+        // 改善された底面衝突処理（微振動防止版）
         const groundLevel = BOTTLE_BOTTOM + compeito.radius;
         if (compeito.position.y <= groundLevel) {
           // 底面に正確に配置
           compeito.position.y = groundLevel;
           
-          // 下向きの速度のみ反転（上向きは保持）
+          // 微小バウンス防止：速度が小さすぎる場合はバウンスせずに停止
           if (compeito.velocity.y < 0) {
-            compeito.velocity.y = -compeito.velocity.y * PHYSICS_CONFIG.restitution;
+            if (Math.abs(compeito.velocity.y) < PHYSICS_CONFIG.minBounceVelocity) {
+              // 微小なバウンスは無視して完全停止
+              compeito.velocity.y = 0;
+            } else {
+              // 通常のバウンスを適用（減衰係数で強めに減速）
+              compeito.velocity.y = -compeito.velocity.y * PHYSICS_CONFIG.restitution * PHYSICS_CONFIG.dampingFactor;
+            }
           }
           
-          // 静止判定（微小な振動を停止）
+          // 静止判定（さらに微小な振動を停止）
           if (Math.abs(compeito.velocity.y) < PHYSICS_CONFIG.restingVelocity) {
             compeito.velocity.y = 0;
           }
@@ -306,7 +317,12 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
               
               // 上のコンペイトウの下向き速度を停止（静止）
               if (upper.velocity.y < 0) {
-                upper.velocity.y = 0;
+                // 微小な下向き速度は完全停止（微振動防止）
+                if (Math.abs(upper.velocity.y) < PHYSICS_CONFIG.minBounceVelocity) {
+                  upper.velocity.y = 0;
+                } else {
+                  upper.velocity.y = 0; // 積み重ね時はバウンスなしで完全停止
+                }
               }
               
               // 積み重ね時の接触摩擦を適用（横方向の滑りを防ぐ）
@@ -414,12 +430,26 @@ export default function BottleDisplay3D({ style }: BottleDisplay3DProps) {
           compeito.velocity.x *= PHYSICS_CONFIG.airResistance;
           compeito.velocity.z *= PHYSICS_CONFIG.airResistance;
           
-          // 横方向の静止判定（微小な横移動を停止）
-          if (Math.abs(compeito.velocity.x) < PHYSICS_CONFIG.horizontalRestingVelocity) {
+          // 微小動き検出・完全停止システム（微振動防止）
+          const totalVelocity = Math.sqrt(
+            compeito.velocity.x * compeito.velocity.x + 
+            compeito.velocity.y * compeito.velocity.y + 
+            compeito.velocity.z * compeito.velocity.z
+          );
+          
+          if (totalVelocity < PHYSICS_CONFIG.microMovementThreshold) {
+            // 全ての微小動きを完全停止
             compeito.velocity.x = 0;
-          }
-          if (Math.abs(compeito.velocity.z) < PHYSICS_CONFIG.horizontalRestingVelocity) {
+            compeito.velocity.y = 0;
             compeito.velocity.z = 0;
+          } else {
+            // 横方向の静止判定（微小な横移動を停止）
+            if (Math.abs(compeito.velocity.x) < PHYSICS_CONFIG.horizontalRestingVelocity) {
+              compeito.velocity.x = 0;
+            }
+            if (Math.abs(compeito.velocity.z) < PHYSICS_CONFIG.horizontalRestingVelocity) {
+              compeito.velocity.z = 0;
+            }
           }
           
           // 位置更新

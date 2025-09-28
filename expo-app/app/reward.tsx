@@ -91,7 +91,7 @@ export default function Reward() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.reward.background,
+    backgroundColor: colors.background,
   },
   header: {
     paddingTop: 60,

@@ -256,7 +256,7 @@ export default function Timer() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.timer.background,
+    backgroundColor: colors.background,
   },
   center: {
     // ローディング/エラー用に追加

@@ -12,6 +12,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
   ios: {
+    bundleIdentifier: "com.kamaboko912.myexpoapp",
     supportsTablet: true,
     config: {
       googleMapsApiKey: process.env.GOOGLE_MAP_API_KEY || "",
@@ -22,6 +23,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   android: {
+    package: "com.kamaboko912.myexpoapp",
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
       foregroundImage: "./assets/images/android-icon-foreground.png",
@@ -70,6 +72,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   extra: {
     ...config.extra,
+    eas: {
+      projectId: "dc387fcc-8698-4a84-9dcb-f6aff4714619",
+    },
     GOOGLE_MAP_API_KEY: process.env.GOOGLE_MAP_API_KEY,
   },
 });

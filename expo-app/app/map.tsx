@@ -27,10 +27,10 @@ import { mockStores, convertToPlaceMarkers } from "../data/mockStores";
 
 // ★★★ ここにあなたのGoogle Maps APIキーを挿入してください ★★★
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAP_API_KEY;
-const SEARCH_RADIUS = 15000; // 検索半径 (メートル)
+const SEARCH_RADIUS = 5000; // 検索半径 (メートル)
 const SEARCH_RADII = [2000, 5000, 10000]; // 段階的検索用の半径リスト
 const MAX_REVIEW_COUNT = 50; // ★レビュー数の上限 (50件以下をフィルタリング)★
-const ENTER_RADIUS_METER = 5000; // 入店可能な半径 (メートル)
+const ENTER_RADIUS_METER = 50; // 入店可能な半径 (メートル)
 
 // 新しいPlaces API (New)用の設定
 const NEW_API_BASE_URL = "https://places.googleapis.com/v1/places:searchNearby";
@@ -967,11 +967,11 @@ export default function MapSample() {
 
         // 3. 現在地情報を使用して飲食店情報を取得
         const placeMarkers = await fetchAllPlaces(latitude, longitude);
-        
+
         // 🌟 4. モックストアデータを追加 🌟
         const mockPlaceMarkers = convertToPlaceMarkers(mockStores);
         const allPlaceMarkers = [...placeMarkers, ...mockPlaceMarkers];
-        
+
         setPlaces(allPlaceMarkers);
 
         // 🌟 5. 各店舗のレビュー済み状態をチェック 🌟

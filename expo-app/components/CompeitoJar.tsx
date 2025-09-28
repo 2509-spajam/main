@@ -145,7 +145,7 @@ export default function CompeitoJar({
       }
 
       // 6. ライティング設定
-      const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // パステルカラー改善（白色光＋適切な明度）
       scene.add(ambientLight);
 
       const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1.0);

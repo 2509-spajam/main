@@ -9,14 +9,14 @@ import { Asset } from 'expo-asset';
 // グローバルのTHREEオブジェクトを設定（Metro bundler要求）
 (global as any).THREE = (global as any).THREE || THREE;
 
-// パステルカラーパレット
+// パステルカラーパレット（より白っぽく調整）
 const PASTEL_COLORS = [
-  new THREE.Color(0xFFB3BA), // ピンク
-  new THREE.Color(0xFFDFBA), // ピーチ
-  new THREE.Color(0xFFFFBA), // イエロー
-  new THREE.Color(0xBAFFC9), // グリーン
-  new THREE.Color(0xBAE1FF), // ブルー
-  new THREE.Color(0xD4BAFF), // パープル
+  new THREE.Color(0xFFDDE6), // ピンク
+  new THREE.Color(0xFFEFDD), // ピーチ
+  new THREE.Color(0xFFFEDD), // イエロー
+  new THREE.Color(0xE8FFE8), // グリーン
+  new THREE.Color(0xE8F4FF), // ブルー
+  new THREE.Color(0xF0E8FF), // パープル
 ];
 
 // ランダムパステルカラーを適用
@@ -26,6 +26,18 @@ const applyRandomPastelColor = (model: THREE.Group) => {
     if (child.isMesh && child.material) {
       child.material = child.material.clone();
       child.material.color = color;
+      child.material.transparent = true;
+      child.material.opacity = 0.95;
+      
+      // 自発光で明るさを向上
+      child.material.emissive = color.clone().multiplyScalar(0.1);
+      
+      if (child.material.shininess !== undefined) {
+        child.material.shininess = 30;
+      }
+      if (child.material.specular !== undefined) {
+        child.material.specular = new THREE.Color(0x222222);
+      }
     }
   });
 };
@@ -108,8 +120,8 @@ export default function GLBCompeitoSingle({
       camera.position.set(1.5, 1.5, 2.5); // 斜め上からの美しいアングル
       camera.lookAt(0, 0, 0);
 
-      // 4. 美しいライティングシステム
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // 環境光
+                  // 4. ライティング（こんぺいとうを美しく照らす）
+      const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // 環境光を強化
       scene.add(ambientLight);
       
       // メインライト（正面から）
@@ -139,6 +151,18 @@ export default function GLBCompeitoSingle({
             if (child.isMesh && child.material) {
               child.material = child.material.clone();
               child.material.color = color;
+              child.material.transparent = true;
+              child.material.opacity = 0.95;
+              
+              // 自発光で明るさを向上
+              child.material.emissive = color.clone().multiplyScalar(0.1);
+              
+              if (child.material.shininess !== undefined) {
+                child.material.shininess = 30;
+              }
+              if (child.material.specular !== undefined) {
+                child.material.specular = new THREE.Color(0x222222);
+              }
             }
           });
         } else {

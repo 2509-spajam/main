@@ -6,9 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors } from "../styles/colors";
 import { typography } from "../styles/typography";
 import { useProfile } from "../hooks/useProfile";
@@ -16,7 +18,28 @@ import BottleDisplay3D from "../components/BottleDisplay3D";
 
 export default function Profile() {
   const router = useRouter();
-  const { profile, loading } = useProfile();
+  const { profile, loading, refreshProfile } = useProfile();
+
+  // デバッグ用：こんぺいとう50個追加
+  const addDebugKompeito = async () => {
+    try {
+      const currentCount = await AsyncStorage.getItem('countConpeito');
+      const newCount = (currentCount ? parseInt(currentCount, 10) : 0) + 50;
+      await AsyncStorage.setItem('countConpeito', newCount.toString());
+      
+      // プロフィールを再読み込み
+      refreshProfile();
+      
+      Alert.alert(
+        '🍬 デバッグ', 
+        `こんぺいとう50個追加しました！\n現在: ${newCount}個`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('デバッグボタンエラー:', error);
+      Alert.alert('エラー', 'こんぺいとう追加に失敗しました');
+    }
+  };
 
 
 
@@ -95,6 +118,23 @@ export default function Profile() {
 
         {/* 余白 */}
         <View style={styles.bottomSpacing} />
+        
+        {/* デバッグボタン（右下の隅） */}
+        {__DEV__ && (
+          <TouchableOpacity 
+            style={styles.debugButton}
+            onPress={addDebugKompeito}
+            onLongPress={() => {
+              Alert.alert(
+                '🐛 デバッグモード', 
+                'こんぺいとう50個追加ボタンです\n（開発版のみ表示）',
+                [{ text: 'OK' }]
+              );
+            }}
+          >
+            <Text style={styles.debugButtonText}>+50🍬</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -225,5 +265,28 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 32,
+  },
+  debugButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 50,
+    height: 50,
+    backgroundColor: colors.accent,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 999,
+  },
+  debugButtonText: {
+    ...typography.caption,
+    color: colors.text.white,
+    fontWeight: 'bold',
+    fontSize: 10,
   },
 });

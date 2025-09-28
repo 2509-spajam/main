@@ -20,43 +20,7 @@ export const useProfile = () => {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [loading, setLoading] = useState(true);
 
-  // プロフィールデータの読み込み
-  const loadProfile = useCallback(async () => {
-    try {
-      const storedProfile = await AsyncStorage.getItem(
-        PROFILE_STORAGE_KEYS.USER_PROFILE
-      );
-      if (storedProfile) {
-        const parsedProfile: UserProfile = JSON.parse(storedProfile);
-
-        // 月が変わっていたら月次データをリセット
-        const now = new Date();
-        const lastReset = new Date(parsedProfile.lastMonthReset);
-
-        if (
-          now.getMonth() !== lastReset.getMonth() ||
-          now.getFullYear() !== lastReset.getFullYear()
-        ) {
-          parsedProfile.monthlyReviews = 0;
-          parsedProfile.lastMonthReset = now.toISOString();
-          await saveProfile(parsedProfile);
-        }
-
-        setProfile(parsedProfile);
-      } else {
-        // 初回起動時のデフォルトプロフィールを保存
-        await saveProfile(DEFAULT_PROFILE);
-        setProfile(DEFAULT_PROFILE);
-      }
-    } catch (error) {
-      console.error("プロフィール読み込みエラー:", error);
-      setProfile(DEFAULT_PROFILE);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // プロフィールデータの保存
+  // プロフィールデータの保存（loadProfileから切り離し）
   const saveProfile = useCallback(async (newProfile: UserProfile) => {
     try {
       await AsyncStorage.setItem(
@@ -68,6 +32,52 @@ export const useProfile = () => {
       console.error("プロフィール保存エラー:", error);
     }
   }, []);
+
+  // プロフィールデータの読み込み
+  const loadProfile = useCallback(async () => {
+    try {
+      const storedProfile = await AsyncStorage.getItem(
+        PROFILE_STORAGE_KEYS.USER_PROFILE
+      );
+      
+      // 'countConpeito'キーからこんぺいとう数を直接読み取り
+      const countConpeitoStr = await AsyncStorage.getItem('countConpeito');
+      const countConpeito = countConpeitoStr ? parseInt(countConpeitoStr, 10) : 0;
+      
+      if (storedProfile) {
+        const parsedProfile: UserProfile = JSON.parse(storedProfile);
+
+        // こんぺいとう数を'countConpeito'キーの値で更新
+        parsedProfile.totalKompeito = countConpeito;
+
+        // 月が変わっていたら月次データをリセット
+        const now = new Date();
+        const lastReset = new Date(parsedProfile.lastMonthReset);
+
+        if (
+          now.getMonth() !== lastReset.getMonth() ||
+          now.getFullYear() !== lastReset.getFullYear()
+        ) {
+          parsedProfile.monthlyReviews = 0;
+          parsedProfile.lastMonthReset = now.toISOString();
+        }
+        
+        // 更新されたプロフィールを保存
+        await saveProfile(parsedProfile);
+        setProfile(parsedProfile);
+      } else {
+        // 初回起動時のデフォルトプロフィールを作成
+        const initialProfile = { ...DEFAULT_PROFILE, totalKompeito: countConpeito };
+        await saveProfile(initialProfile);
+        setProfile(initialProfile);
+      }
+    } catch (error) {
+      console.error("プロフィール読み込みエラー:", error);
+      setProfile(DEFAULT_PROFILE);
+    } finally {
+      setLoading(false);
+    }
+  }, [saveProfile]);
 
   // レビュー投稿時の統計更新
   const addReview = useCallback(
@@ -108,14 +118,18 @@ export const useProfile = () => {
         );
 
         // プロフィール統計を更新
+        const newTotalKompeito = profile.totalKompeito + kompeito;
         const updatedProfile: UserProfile = {
           ...profile,
           totalReviews: profile.totalReviews + 1,
-          totalKompeito: profile.totalKompeito + kompeito,
+          totalKompeito: newTotalKompeito,
           reviewedStores: reviewedStores.size,
           monthlyReviews: profile.monthlyReviews + 1,
         };
 
+        // 'countConpeito'キーも同期更新
+        await AsyncStorage.setItem('countConpeito', newTotalKompeito.toString());
+        
         await saveProfile(updatedProfile);
       } catch (error) {
         console.error("レビュー追加エラー:", error);
@@ -131,6 +145,7 @@ export const useProfile = () => {
         PROFILE_STORAGE_KEYS.USER_PROFILE,
         PROFILE_STORAGE_KEYS.REVIEWS_DATA,
         PROFILE_STORAGE_KEYS.REVIEWED_STORES,
+        'countConpeito', // デバッグ用キーもリセット
       ]);
       await loadProfile();
     } catch (error) {

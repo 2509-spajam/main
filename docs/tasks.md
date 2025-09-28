@@ -1,53 +1,92 @@
-# 最小限コンペイトウ物理システム実装計画
+# こんぺいとう数表示不具合調査計画
+
+## 問題概要
+- AsyncStorageに58個のこんぺいとうが保存されているはず
+- プロフィール画面では0個と表示される  
+- ログに「🍯 0個のコンペイトウを生成中...」と出力される
+
+## 調査対象ファイル
+
+### 1. AsyncStorage関連
+- **ファイルパス**: `expo-app/app/profile.tsx`
+  - プロフィール画面でのこんぺいとう数表示ロジック
+  - BottleDisplay3Dに渡される`compeitoCount`の値
+  
+- **ファイルパス**: `expo-app/hooks/useProfile.ts`
+  - AsyncStorageからの値読み込み処理
+  - `totalKompeito`の更新ロジック
+  - `refreshProfile`関数の動作確認
+
+### 2. 表示コンポーネント
+- **ファイルパス**: `expo-app/components/BottleDisplay3D.tsx`
+  - `compeitoCount` propsの受け取り確認
+  - 物理システムでの使用箇所特定
+
+### 3. AsyncStorageキー確認
+- **ファイルパス**: `expo-app/types/profile.ts`
+  - ストレージキーの定義確認
+- **ファイルパス**: `expo-app/app/reward.tsx`
+  - こんぺいとう追加時のキー確認（'countConpeito'）
+
+## 予想される原因
+
+### 原因1: ストレージキーの不一致（高確率）
+- デバッグボタンでは `'countConpeito'` キーを使用
+- useProfileフックでは異なるキーを参照している可能性
+
+### 原因2: 非同期処理のタイミング問題（中確率）
+- AsyncStorageの読み込み完了前に表示処理が実行される
+- `refreshProfile`が正常に動作していない
+
+### 原因3: propsの渡し方の問題（低確率）
+- profile.totalKompeitoの値が正しく更新されていない
+- BottleDisplay3Dへのprops渡しに問題
+
+## 調査手順
+1. useProfile.tsでのストレージキー確認
+2. profile.tsxでのprops渡し確認  
+3. AsyncStorageの実際の保存値をデバッグ出力
+4. BottleDisplay3D.tsxでのprops受け取り確認
+5. 必要に応じてキー統一またはデータ同期処理修正
+
+## 解決アプローチ
+- Phase 1: ストレージキーの統一
+- Phase 2: 非同期処理の修正
+- Phase 3: 表示更新処理の改善
 
 ## 🎯 目標
-**最小限の実装で以下を実現:**
-1. ✅ ビンからコンペイトウが出ない（すり抜けない）
-2. ✅ コンペイトウ同士が衝突する
+**AmbientLight の明度調整でパステルカラーのくすみ問題を解決:**
+1. GLBCompeitoSingle.tsx のライティング改善
+2. GLBCompeitoJar.tsx のライティング改善
+3. BottleDisplay3D.tsx のライティング改善
+4. CompeitoJar.tsx のライティング改善
 
-## 🔧 必要最小限の実装内容
+## 🔧 実装内容
 
-### 1. 複数コンペイトウの生成と管理
+### Phase 1: AmbientLight 明度調整
+
+#### 1. GLBCompeitoSingle.tsx
+- **ファイルパス**: `expo-app/components/GLBCompeitoSingle.tsx`
+- **変更内容**: AmbientLight の intensity を 0.4 → 0.7 に変更
+
+#### 2. GLBCompeitoJar.tsx  
+- **ファイルパス**: `expo-app/components/GLBCompeitoJar.tsx`
+- **変更内容**: AmbientLight の intensity を 0.4 → 0.7 に変更
+
+#### 3. BottleDisplay3D.tsx
+- **ファイルパス**: `expo-app/components/BottleDisplay3D.tsx` 
+- **変更内容**: AmbientLight の intensity を現在値 → 0.7 に変更
+
+#### 4. CompeitoJar.tsx
+- **ファイルパス**: `expo-app/components/CompeitoJar.tsx`
+- **変更内容**: AmbientLight の intensity を現在値 → 0.7 に変更
+
+### 必要な変更箇所
+
+各ファイルで以下のパターンを探して intensity を調整:
 ```typescript
-interface CompeitoPhysics {
-  position: { x: number, y: number, z: number };
-  velocity: { x: number, y: number, z: number };
-  radius: number;
-  model: THREE.Object3D;
-}
-
-// 3-5個のコンペイトウ配列
-const compeitos: CompeitoPhysics[] = [];
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // 0.7に変更
 ```
-
-### 2. ビン境界の衝突判定（円柱形状）
-```typescript
-function constrainToBottle(compeito: CompeitoPhysics) {
-  const BOTTLE_RADIUS = 0.7;   // ビンの内半径
-  const BOTTLE_BOTTOM = -0.8;  // ビンの底
-  
-  // XZ平面での円形境界チェック
-  const distFromCenter = Math.sqrt(
-    compeito.position.x ** 2 + compeito.position.z ** 2
-  );
-  
-  if (distFromCenter + compeito.radius > BOTTLE_RADIUS) {
-    // 壁に押し戻し
-    const scale = (BOTTLE_RADIUS - compeito.radius) / distFromCenter;
-    compeito.position.x *= scale;
-    compeito.position.z *= scale;
-    
-    // 速度反射
-    const nx = compeito.position.x / distFromCenter;
-    const nz = compeito.position.z / distFromCenter;
-    const dot = compeito.velocity.x * nx + compeito.velocity.z * nz;
-    compeito.velocity.x -= 2 * dot * nx;
-    compeito.velocity.z -= 2 * dot * nz;
-  }
-  
-  // 底面衝突
-  if (compeito.position.y - compeito.radius < BOTTLE_BOTTOM) {
-    compeito.position.y = BOTTLE_BOTTOM + compeito.radius;
     compeito.velocity.y = -compeito.velocity.y * 0.7; // 反発
   }
 }

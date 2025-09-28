@@ -154,19 +154,27 @@ export default function BottleDisplay3D({ style, compeitoCount }: BottleDisplay3
       camera.position.set(0, 0, 5);
       cameraRef.current = camera;
 
-      // ライティング（expo-gl互換性を重視）
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+      // ライティング（ボトル内を明るくするため大幅強化）
+      const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // 環境光をさらに強化
       scene.add(ambientLight);
 
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); // メインライト強化
       directionalLight.position.set(5, 5, 5);
-      directionalLight.castShadow = false; // シャドウを無効化
+      directionalLight.castShadow = false;
       scene.add(directionalLight);
 
-      // 追加のライトで全体を明るく
-      const light2 = new THREE.DirectionalLight(0xffffff, 0.3);
+      // 追加のライトで全体を明るく（複数方向から）
+      const light2 = new THREE.DirectionalLight(0xffffff, 0.6);
       light2.position.set(-5, -5, -5);
       scene.add(light2);
+      
+      const light3 = new THREE.DirectionalLight(0xffffff, 0.4);
+      light3.position.set(0, -5, 0); // 底面から上向きのライト
+      scene.add(light3);
+      
+      const light4 = new THREE.DirectionalLight(0xffffff, 0.3);
+      light4.position.set(0, 5, 0); // 上面から下向きのライト
+      scene.add(light4);
 
       // GLBモデルのロード（ボトル）
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -193,6 +201,24 @@ export default function BottleDisplay3D({ style, compeitoCount }: BottleDisplay3
 
       // ボトルモデルをシーンに追加
       const bottleModel = bottleGltf.scene;
+      
+      // ボトルマテリアルを透明にしてこんぺいとうを見やすく
+      bottleModel.traverse((child: any) => {
+        if (child.isMesh && child.material) {
+          child.material = child.material.clone();
+          child.material.transparent = true;
+          child.material.opacity = 0.15; // より透明に（光を通しやすく）
+          child.material.side = THREE.DoubleSide; // 両面レンダリング
+          
+          // ガラス質感を強化
+          if (child.material.shininess !== undefined) {
+            child.material.shininess = 100;
+          }
+          if (child.material.reflectivity !== undefined) {
+            child.material.reflectivity = 0.1;
+          }
+        }
+      });
       
       // ボトルのサイズ調整
       const bottleBox = new THREE.Box3().setFromObject(bottleModel);
@@ -251,15 +277,29 @@ export default function BottleDisplay3D({ style, compeitoCount }: BottleDisplay3
         
         compeitoInstance.position.set(initialX, initialY, initialZ);
         
-        // パステルカラーを適用（より多くの色バリエーション）
+        // パステルカラーを適用（より白っぽく調整）
         const colors = [
-          0xFFB3BA, 0xFFDFBA, 0xBAE1FF, 0xBAFFBA, 0xFFBAFF,
-          0xFFF2BA, 0xBAFFC9, 0xFFBAE1, 0xE1BAFF, 0xBAFFF2
+          0xFFDDE6, 0xFFEFDD, 0xFFFEDD, 0xE8FFE8, 0xE8F4FF, 0xF0E8FF,
+          0xFFF0F5, 0xF0FFF0, 0xF0FFFF, 0xFFFAF0
         ];
         compeitoInstance.traverse((child: any) => {
           if (child.isMesh && child.material) {
             child.material = child.material.clone();
-            child.material.color = new THREE.Color(colors[i % colors.length]);
+            const baseColor = new THREE.Color(colors[i % colors.length]);
+            child.material.color = baseColor;
+            child.material.transparent = true;
+            child.material.opacity = 0.95; // より不透明にして自然なパステル感に
+            
+            // ボトル内でも明るく見えるように発光を追加
+            child.material.emissive = baseColor.clone().multiplyScalar(0.15); // 自発光でボトル内の暗さを補償
+            
+            // パステルカラーの美しさを向上させる光沢設定
+            if (child.material.shininess !== undefined) {
+              child.material.shininess = 30; // 光沢を抑えてマットに
+            }
+            if (child.material.specular !== undefined) {
+              child.material.specular = new THREE.Color(0x222222); // 反射を抑えて自然に
+            }
           }
         });
         
